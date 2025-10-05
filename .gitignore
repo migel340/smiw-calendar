@@ -1,3 +1,7 @@
 /credentials.json
 /token.json
 .idea/
+/folder_structure
+__pycache__/
+/.env
+out/*
