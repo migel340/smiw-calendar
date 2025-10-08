@@ -1,7 +1,9 @@
-/credentials.json
-/token.json
+credentials.json
+token.json
 .idea/
-/folder_structure
+folder_structure
 __pycache__/
 /.env
 out/*
+.DS_Store
+src/.DS_Store
