@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import List
 from googleapiclient.errors import HttpError
 from src.services.build_service import build_service
-
 @dataclass
 class Event:
     summary: str
