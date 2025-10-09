@@ -8,7 +8,6 @@ from pathlib import Path
 
 def get_google_auth():
     token_path = Path(GOOGLE_TOKEN_PATH)
-    credentials_path = Path(GOOGLE_CREDENTIALS_PATH)
     creds = None
     if token_path.exists():
         creds = Credentials.from_authorized_user_file(f"{token_path}", GOOGLE_API_SCOPES)
