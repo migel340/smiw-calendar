@@ -10,7 +10,7 @@ class Event:
     end: datetime.datetime
     is_all_day: bool
 
-def list_upcoming_events(service_name, max_results: int) -> List[Event]:
+def list_events(service_name, max_results: int) -> List[Event]:
     try:
         now = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
         print(f"Getting the upcoming {max_results} events")
@@ -59,6 +59,6 @@ def list_upcoming_events(service_name, max_results: int) -> List[Event]:
 if __name__ == "__main__":
     calendar_service = build_service("calendar", "v3")
     if calendar_service:
-        events = list_upcoming_events(service_name=calendar_service, max_results=3)
+        events = list_events(service_name=calendar_service, max_results=3)
         for event in events:
             print(f" {event.start.strftime('%Y-%m-%d %H:%M')} - {event.summary}")
