@@ -1,37 +1,59 @@
-from os import remove
-from tkinter.font import names
-
 from googleapiclient.errors import HttpError
 
-from src.services.google_calendar import list_events, Event
-from src.services.google_tasks import list_tasks, Task
-from logging import getLogger
+from src.services.google_tasks import list_tasks
 from typing import List, Dict, Any
 import datetime
 import logging
 
 logger = logging.getLogger(__name__)
 
-def get_structured_tasks() -> List[Dict[str, Any]] | None:
+def get_structured_tasks() -> List[Dict[str, Any]]:
+    result: List[Dict[str, Any]] = []
+    logger.info("Starting fetch of tasks from service")
     try:
         tasks = list_tasks()
-        result = []
-        for task in tasks:
-            if task.title is None:
-                continue
-
-            task_dict = {
-                "title": task.title,
-                "due": None if task.due is None else datetime.datetime.fromisoformat(str(task.due)),
-                "notes": task.notes if task.notes and task.notes.strip() else None
-            }
-            result.append(task_dict)
-
+        if isinstance(tasks, list):
+            logger.info("Fetched %d raw tasks from service", len(tasks))
+        else:
+            logger.debug("Fetched tasks object: %r", tasks)
     except HttpError as e:
-        logger.error(f"An error occurred: {e}")
-
-    finally:
+        logger.error("An HTTP error occurred while fetching tasks: %s", e)
         return result
+    except Exception:
+        logger.exception("Unexpected error while fetching tasks")
+        return result
+
+    logger.info("Processing fetched tasks")
+    for task in tasks or []:
+        title = getattr(task, "title", None)
+        if title is None:
+            logger.debug("Skipping task without title: %r", task)
+            continue
+
+        due_val = getattr(task, "due", None)
+        if due_val is None:
+            due = None
+        else:
+            try:
+                due = datetime.datetime.fromisoformat(str(due_val))
+                logger.debug("Parsed due for task %s: %s", title, due)
+            except Exception:
+                due = str(due_val)
+                logger.debug("Failed to parse due for task %s, using raw value: %r", title, due_val)
+
+        notes = getattr(task, "notes", None)
+        notes = notes if notes and str(notes).strip() else None
+
+        task_dict: Dict[str, Any] = {
+            "title": title,
+            "due": due,
+            "notes": notes,
+        }
+        result.append(task_dict)
+
+    logger.info("Finished processing tasks, returning %d structured tasks", len(result))
+    return result
+
 
 if __name__ == "__main__":
     tasks2 = get_structured_tasks()
