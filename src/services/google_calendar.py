@@ -3,6 +3,10 @@ from dataclasses import dataclass
 from typing import List
 from googleapiclient.errors import HttpError
 from src.services.build_service import build_service
+from logging import getLogger
+
+logger = getLogger(__name__)
+
 @dataclass
 class Event:
     summary: str
@@ -10,12 +14,14 @@ class Event:
     end: datetime.datetime
     is_all_day: bool
 
-def list_upcoming_events(service_name, max_results: int) -> List[Event]:
+def list_events(max_results: int) -> List[Event]:
     try:
+
+        service = build_service("calendar", "v3")
+
         now = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
-        print(f"Getting the upcoming {max_results} events")
         events_result = (
-            service_name.events()
+            service.events()
             .list(
                 calendarId="primary",
                 timeMin=now,
@@ -30,7 +36,6 @@ def list_upcoming_events(service_name, max_results: int) -> List[Event]:
         upcoming_events = []
 
         if not items:
-            print("No upcoming events found.")
             return []
 
         for item in items:
@@ -50,15 +55,15 @@ def list_upcoming_events(service_name, max_results: int) -> List[Event]:
                 is_all_day=is_all_day
             )
             upcoming_events.append(event)
-        return upcoming_events
 
-    except HttpError as error:
-        print(f"An error occurred: {error}")
+    except HttpError as e:
+        logger.error(f"An error occurred: {e}")
         return []
 
+    finally:
+        return upcoming_events
+
 if __name__ == "__main__":
-    calendar_service = build_service("calendar", "v3")
-    if calendar_service:
-        events = list_upcoming_events(service_name=calendar_service, max_results=3)
-        for event in events:
-            print(f" {event.start.strftime('%Y-%m-%d %H:%M')} - {event.summary}")
+    events = list_events(max_results=3)
+    for event in events:
+        print(f" {event.start.strftime('%Y-%m-%d %H:%M')} - {event.summary}")

@@ -27,11 +27,13 @@ def parse_title(title: str) -> str:
     return title
 
 
-def list_tasks(service_name, max_results: int) -> List[Task]:
+def list_tasks(max_results: int = 5) -> List[Task]:
     try:
-        print(f"Getting {max_results} tasks")
+
+        service = build_service("tasks", "v1")
+
         task_results = (
-            service_name.tasks()
+            service.tasks()
             .list(
                 tasklist="@default",
                 maxResults=max_results,
@@ -50,17 +52,18 @@ def list_tasks(service_name, max_results: int) -> List[Task]:
             task = Task(
                 title=parsed_title,
                 due=parsed_due,
-                notes=item.get("notes", None))
+                notes=item.get("notes", "")
+            )
             task_list.append(task)
+
         return task_list
 
-    except HttpError as error:
-        print(f"An error occurred: {error}")
+    except HttpError as e:
+        print(f"An error occurred: {e}")
         return []
 
 if __name__ == "__main__":
-    tasks_service = build_service("tasks", "v1")
-    if tasks_service:
-        tasks = list_tasks(service_name=tasks_service, max_results=3)
+
+        tasks = list_tasks(max_results=5)
         for task in tasks:
             print(f"Task: {task.title}, Due: {task.due}, Notes: {task.notes}")
