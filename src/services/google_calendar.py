@@ -14,7 +14,7 @@ class Event:
     end: datetime.datetime
     is_all_day: bool
 
-def list_events(max_results: int) -> List[Event]:
+def list_events(max_results: int = 10) -> List[Event]:
     try:
 
         service = build_service("calendar", "v3")
@@ -66,4 +66,4 @@ def list_events(max_results: int) -> List[Event]:
 if __name__ == "__main__":
     events = list_events(max_results=3)
     for event in events:
-        print(f" {event.start.strftime('%Y-%m-%d %H:%M')} - {event.summary}")
+        print(f" {event.start} - {event.end} - {event.is_all_day} - {event.summary}")

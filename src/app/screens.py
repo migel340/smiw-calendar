@@ -1,5 +1,5 @@
 from googleapiclient.errors import HttpError
-
+from src.services.google_calendar import list_events
 from src.services.google_tasks import list_tasks
 from typing import List, Dict, Any
 import datetime
@@ -54,9 +54,67 @@ def get_structured_tasks() -> List[Dict[str, Any]]:
     logger.info("Finished processing tasks, returning %d structured tasks", len(result))
     return result
 
+def get_structured_events() -> List[Dict[str, Any]]:
+    result: List[Dict[str, Any]] = []
+    logger.info("Starting fetch of events from service")
+    try:
+        events = list_events()
+        if isinstance(events, list):
+            logger.info("Fetched %d raw events from service", len(events))
+        else:
+            logger.debug("Fetched events object: %r", events)
+    except HttpError as e:
+        logger.error("An HTTP error occurred while fetching events: %s", e)
+        return result
+    except Exception:
+        logger.exception("Unexpected error while fetching events")
+        return result
+
+    logger.info("Processing fetched events")
+    for event in events or []:
+        try:
+            title = getattr(event, "summary", None)
+            if title is None:
+                logger.debug("Skipping event without title: %r", event)
+                continue
+
+            start = None
+            end = None
+            is_all_day = getattr(event, "is_all_day", False)
+
+            if is_all_day:
+                logger.info("Parsed event for all day: %r", event)
+                start = getattr(event, "start", None)
+            elif not is_all_day:
+                logger.info("Parsed event for specific time: %r", event)
+                start = getattr(event, "start", None)
+                end = getattr(event, "end", None)
+            else:
+                logger.warning("Event has unexpected is_all_day value: %r", event)
+                continue
+        except HttpError as e:
+            logger.error("An HTTP error occurred while parsing event: %s", e)
+            continue
+        except Exception:
+            logger.exception("Unexpected error while parsing event: %r", event)
+            continue
+
+        event_dict: Dict[str, Any] = {
+                "title": title,
+                "start": start,
+                "end": end if not is_all_day else None
+        }
+        result.append(event_dict)
+    logger.info("Finished parsing event for event: %r", len(result))
+    return result
+
 
 if __name__ == "__main__":
     tasks2 = get_structured_tasks()
     print(tasks2)
     for task in tasks2:
         print(task)
+    events = get_structured_events()
+    print(events)
+    for event in events:
+        print(event)
