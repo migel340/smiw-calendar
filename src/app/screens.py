@@ -6,7 +6,7 @@ import datetime
 import logging
 
 logger = logging.getLogger(__name__)
-
+# TODO fix tasks -> Onli title and thats it, add event date parser
 def get_structured_tasks() -> List[Dict[str, Any]]:
     result: List[Dict[str, Any]] = []
     logger.info("Starting fetch of tasks from service")
@@ -78,8 +78,6 @@ def get_structured_events() -> List[Dict[str, Any]]:
                 logger.debug("Skipping event without title: %r", event)
                 continue
 
-            start = None
-            end = None
             is_all_day = getattr(event, "is_all_day", False)
 
             if is_all_day:
