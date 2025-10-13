@@ -56,12 +56,17 @@ def list_events(max_results: int = 10) -> List[Event]:
             )
             upcoming_events.append(event)
 
+        return upcoming_events
+
     except HttpError as e:
         logger.error(f"An error occurred: {e}")
         return []
+    except Exception as e:
+        logger.exception(f"Unexpected error: {e}")
+        return []
 
-    finally:
-        return upcoming_events
+
+
 
 if __name__ == "__main__":
     events = list_events(max_results=3)
