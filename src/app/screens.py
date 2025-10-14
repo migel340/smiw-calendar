@@ -89,7 +89,7 @@ def get_structured_events() -> List[Dict[str, Any]]:
             start_obj = getattr(event, "start", None)
             end_obj = getattr(event, "end", None)
 
-            is_all_day = getattr(event, "is_all_day", False)
+            is_all_day = bool(getattr(event, "is_all_day", False))
 
             start_dt = parse_event_datetime(start_obj, is_all_day)
             end_dt = parse_event_datetime(end_obj, is_all_day)
@@ -117,6 +117,7 @@ def get_structured_events() -> List[Dict[str, Any]]:
 
         result.append(event_dict)
     logger.info("Finished parsing event for event: %r", len(result))
+    result.sort(key=lambda e: (e["start"] is None, e["start"]))
     return result
 
 
