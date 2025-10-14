@@ -89,7 +89,7 @@ def get_structured_events() -> List[Dict[str, Any]]:
             start_obj = getattr(event, "start", None)
             end_obj = getattr(event, "end", None)
 
-            is_all_day = bool(getattr(event, "is_all_day", False))
+            is_all_day = getattr(event, "is_all_day", False)
 
             start_dt = parse_event_datetime(start_obj, is_all_day)
             end_dt = parse_event_datetime(end_obj, is_all_day)
@@ -108,10 +108,11 @@ def get_structured_events() -> List[Dict[str, Any]]:
         else:
             end_str = format_datetime(end_dt, False) if end_dt is not None else None
 
-        event_dict = {
+        event_dict: Dict[str, Any] = {
             "title": title,
             "start": start_str,
             "end": end_str,
+            "is_all_day": is_all_day,
         }
 
         result.append(event_dict)
