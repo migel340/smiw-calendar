@@ -11,7 +11,7 @@ OUTDIR = os.getenv("OUTDIR")
 GOOGLE_TOKEN_PATH = os.getenv("GOOGLE_TOKEN_PATH")
 GOOGLE_CREDENTIALS_PATH = os.getenv("GOOGLE_CREDENTIALS_PATH")
 
-CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
-TASKS_SCOPES = ['https://www.googleapis.com/auth/tasks.readonly']
+CALENDAR_SCOPES = os.getenv("CALENDAR_SCOPES")
+TASKS_SCOPES = os.getenv("TASKS_SCOPES")
 
-GOOGLE_API_SCOPES = CALENDAR_SCOPES + TASKS_SCOPES
+GOOGLE_API_SCOPES = [TASKS_SCOPES, CALENDAR_SCOPES]

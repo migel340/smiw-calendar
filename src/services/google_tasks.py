@@ -61,6 +61,9 @@ def list_tasks(max_results: int = 5) -> List[Task]:
     except HttpError as e:
         print(f"An error occurred: {e}")
         return []
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return []
 
 if __name__ == "__main__":
 
