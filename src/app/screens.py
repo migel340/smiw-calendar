@@ -74,10 +74,10 @@ def get_structured_events() -> List[Dict[str, Any]]:
     logger.info("Processing fetched events")
     for event in events or []:
 
-        title = None
-        start_dt = None
-        end_dt = None
-        is_all_day = False
+        # title = None
+        # start_dt = None
+        # end_dt = None
+        # is_all_day = False
 
         try:
 
