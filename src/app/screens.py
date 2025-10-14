@@ -4,6 +4,7 @@ from src.services.google_tasks import list_tasks
 from typing import List, Dict, Any
 import datetime
 import logging
+from src.utils.tz import parse_event_datetime, format_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -72,26 +73,27 @@ def get_structured_events() -> List[Dict[str, Any]]:
 
     logger.info("Processing fetched events")
     for event in events or []:
+
+        title = None
+        start_dt = None
+        end_dt = None
+        is_all_day = False
+
         try:
+
             title = getattr(event, "summary", None)
             if title is None:
                 logger.debug("Skipping event without title: %r", event)
                 continue
 
-            is_all_day = getattr(event, "is_all_day", False)
-            date_format = "%Y-%m-%d" if is_all_day else "%Y-%m-%d %H:%M"
+            start_obj = getattr(event, "start", None)
+            end_obj = getattr(event, "end", None)
 
-            if is_all_day:
-                logger.info("Parsed event for all day: %r", event)
-                start = getattr(event, "start", None)
-                end = None
-            elif not is_all_day:
-                logger.info("Parsed event for specific time: %r", event)
-                start = getattr(event, "start", None)
-                end = getattr(event, "end", None)
-            else:
-                logger.warning("Event has unexpected is_all_day value: %r", event)
-                continue
+            is_all_day = bool(getattr(event, "is_all_day", False))
+
+            start_dt = parse_event_datetime(start_obj, is_all_day)
+            end_dt = parse_event_datetime(end_obj, is_all_day)
+
         except HttpError as e:
             logger.error("An HTTP error occurred while parsing event: %s", e)
             continue
@@ -99,11 +101,19 @@ def get_structured_events() -> List[Dict[str, Any]]:
             logger.exception("Unexpected error while parsing event: %r", event)
             continue
 
-        event_dict: Dict[str, Any] = {
-                "title": title,
-                "start": start.strftime(date_format) if start else None,
-                "end": end.strftime(date_format) if end and not is_all_day else None
+        start_str = format_datetime(start_dt, is_all_day)
+
+        if is_all_day:
+            end_str = None
+        else:
+            end_str = format_datetime(end_dt, False) if end_dt is not None else None
+
+        event_dict = {
+            "title": title,
+            "start": start_str,
+            "end": end_str,
         }
+
         result.append(event_dict)
     logger.info("Finished parsing event for event: %r", len(result))
     return result
