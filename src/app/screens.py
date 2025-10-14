@@ -6,7 +6,7 @@ import datetime
 import logging
 
 logger = logging.getLogger(__name__)
-# TODO fix tasks -> Onli title and thats it, add event date parser
+
 def get_structured_tasks() -> List[Dict[str, Any]]:
     result: List[Dict[str, Any]] = []
     logger.info("Starting fetch of tasks from service")
@@ -46,7 +46,7 @@ def get_structured_tasks() -> List[Dict[str, Any]]:
 
         task_dict: Dict[str, Any] = {
             "title": title,
-            "due": due,
+            "due": due.strftime("%Y-%m-%d") if due else None,
             "notes": notes,
         }
         result.append(task_dict)
@@ -79,10 +79,12 @@ def get_structured_events() -> List[Dict[str, Any]]:
                 continue
 
             is_all_day = getattr(event, "is_all_day", False)
+            date_format = "%Y-%m-%d" if is_all_day else "%Y-%m-%d %H:%M"
 
             if is_all_day:
                 logger.info("Parsed event for all day: %r", event)
                 start = getattr(event, "start", None)
+                end = None
             elif not is_all_day:
                 logger.info("Parsed event for specific time: %r", event)
                 start = getattr(event, "start", None)
@@ -99,8 +101,8 @@ def get_structured_events() -> List[Dict[str, Any]]:
 
         event_dict: Dict[str, Any] = {
                 "title": title,
-                "start": start,
-                "end": end if not is_all_day else None
+                "start": start.strftime(date_format) if start else None,
+                "end": end.strftime(date_format) if end and not is_all_day else None
         }
         result.append(event_dict)
     logger.info("Finished parsing event for event: %r", len(result))

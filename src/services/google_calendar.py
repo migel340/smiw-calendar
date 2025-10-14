@@ -14,7 +14,7 @@ class Event:
     end: datetime.datetime
     is_all_day: bool
 
-def list_events(max_results: int = 10) -> List[Event]:
+def list_events(max_results: int = 10) -> List[Event] | None:
     try:
 
         service = build_service("calendar", "v3")
