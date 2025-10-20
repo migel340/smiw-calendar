@@ -12,9 +12,21 @@ def display(image: Image.Image):
     image.show()
 
 
-class MockEDP:
+class EPD:
     width = EPD_WIDTH
     height = EPD_HEIGHT
 
-    def __init__(self): pass
-    def clear (self):pass
+    def __init__(self):
+        pass
+
+    def clear(self):
+        pass
+
+    def init(self):
+        pass
+
+    def display(self, image: Image.Image):
+        display(image)
+
+    def sleep(self):
+        pass
