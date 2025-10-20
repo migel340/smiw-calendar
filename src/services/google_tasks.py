@@ -27,7 +27,7 @@ def parse_title(title: str) -> str:
     return title
 
 
-def list_tasks(max_results: int = 5) -> List[Task]:
+def get_list_tasks(max_results: int = 5) -> List[Task]:
     try:
 
         service = build_service("tasks", "v1")
@@ -67,6 +67,6 @@ def list_tasks(max_results: int = 5) -> List[Task]:
 
 if __name__ == "__main__":
 
-        tasks = list_tasks(max_results=5)
+        tasks = get_list_tasks(max_results=5)
         for task in tasks:
             print(f"Task: {task.title}, Due: {task.due}, Notes: {task.notes}")

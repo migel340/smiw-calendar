@@ -1,6 +1,6 @@
 from googleapiclient.errors import HttpError
-from src.services.google_calendar import list_events
-from src.services.google_tasks import list_tasks
+from src.services.google_calendar import get_list_events
+from src.services.google_tasks import get_list_tasks
 from typing import List, Dict, Any
 import datetime
 import logging
@@ -12,7 +12,7 @@ def get_structured_tasks() -> List[Dict[str, Any]]:
     result: List[Dict[str, Any]] = []
     logger.info("Starting fetch of tasks from service")
     try:
-        tasks = list_tasks()
+        tasks = get_list_tasks()
         if isinstance(tasks, list):
             logger.info("Fetched %d raw tasks from service", len(tasks))
         else:
@@ -59,7 +59,7 @@ def get_structured_events() -> List[Dict[str, Any]]:
     result: List[Dict[str, Any]] = []
     logger.info("Starting fetch of events from service")
     try:
-        events = list_events()
+        events = get_list_events()
         if isinstance(events, list):
             logger.info("Fetched %d raw events from service", len(events))
         else:
