@@ -1,8 +1,6 @@
 from src.hardware import get_epd
 from PIL import Image, ImageDraw, ImageFont
-from src.graphics.draw_utils import wrap_text
 from src.app.screens import get_structured_events, get_structured_tasks
-from src.utils.clock import get_local_time
 from typing import List, Dict, Any
 from src.config import FONT_PATH
 
