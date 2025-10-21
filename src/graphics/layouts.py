@@ -9,14 +9,10 @@ from PIL import Image, ImageDraw, ImageFont
 from src.app.screens import get_structured_events, get_structured_tasks
 from typing import List, Dict, Any
 from src.config import FONT_PATH
-
-
 from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)
-
-font = FONT_PATH
 
 def _load_font(size: int) -> ImageFont.FreeTypeFont:
     try:
