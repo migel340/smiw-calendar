@@ -1,3 +1,9 @@
+from numbers import Number
+
+from ctypes.macholib.dyld import dyld_env
+
+from PIL.SpiderImagePlugin import iforms
+
 from src.hardware import get_epd
 from PIL import Image, ImageDraw, ImageFont
 from src.app.screens import get_structured_events, get_structured_tasks
@@ -28,14 +34,31 @@ def draw_tasks_screen(tasks: List[Dict[str, Any]]) -> Image.Image:
     img = Image.new("1", (epd.width, epd.height), 1)
     draw = ImageDraw.Draw(img)
 
-    font_small = _load_font(size=8)
-    font_large = _load_font(size=12)
-    y_offset = 3
-    line_height = 10
-    draw.text((5, y_offset), "TASKS", fill=0, font=font_large)
+    font_small = _load_font(size=12)
+    font_large = _load_font(size=14)
+    y_offset = 5
+    line_height = 16
+    draw.text((5, y_offset), "TASKS", fill=0, font=font_large)\
 
+    y_offset += line_height
 
+    for task in tasks:
+        due = task.get("due")
+        title = task.get("title")
+        if not due:
+            title_string = f"* {title}"
+            draw.text((5, y_offset), title_string, fill=0, font=font_small)
+            y_offset += line_height
+        elif due:
+            title_string = f"* {title}"
+            due_string = f"- {due}"
+            draw.text((5, y_offset), title_string, fill=0, font=font_small)
+            y_offset += line_height
+            draw.text((10, y_offset), due_string, fill=0, font=font_small)
+            y_offset += line_height
     return img
+
+
 
 def test_draw_tasks_screen():
     logger.info("Testing draw_tasks_screen...")
