@@ -1,13 +1,13 @@
 from time import sleep
 from typing import Optional, Any
-import threading
+from threading import Lock
 import logging
 
 try:
-    from gpiozero import LED 
+    from gpiozero import LED as _RealLED
     _HAVE_GPIOZERO = True
 except Exception:
-    LED = None
+    _RealLED = None
     _HAVE_GPIOZERO = False
 
 logger = logging.getLogger(__name__)
@@ -33,10 +33,10 @@ class _MockLED:
         logger.info("[MOCK] LED closed")
 
 
-LED_CLASS: Any = LED if _HAVE_GPIOZERO else _MockLED
+LED_CLASS: Any = _RealLED if _HAVE_GPIOZERO else _MockLED
 
 _led: Optional[Any] = None
-_lock = threading.Lock()
+_lock = Lock()
 
 
 def _get_led() -> Any:
