@@ -14,23 +14,34 @@ class Event:
     end: datetime.datetime
     is_all_day: bool
 
-def get_list_events(max_results: int = 10) -> List[Event] | None:
+def get_list_events(max_results: int = 10, time_min: datetime.datetime | str | None = None, time_max: datetime.datetime | str | None = None) -> List[Event] | None:
     try:
 
         service = build_service("calendar", "v3")
 
-        now = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
-        events_result = (
-            service.events()
-            .list(
-                calendarId="primary",
-                timeMin=now,
-                maxResults=max_results,
-                singleEvents=True,
-                orderBy="startTime",
-            )
-            .execute()
-        )
+        params = {
+            "calendarId": "primary",
+            "maxResults": max_results,
+            "singleEvents": True,
+            "orderBy": "startTime",
+        }
+        
+        if time_min is not None:
+            if isinstance(time_min, datetime.datetime):
+                params["timeMin"] = time_min.isoformat()
+            else:
+                params["timeMin"] = str(time_min)
+        else:
+            params["timeMin"] = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
+        
+        if time_max is not None:
+            if isinstance(time_max, datetime.datetime):
+                params["timeMax"] = time_max.isoformat()
+            else:
+                params["timeMax"] = str(time_max)
+        
+        logger.debug("Calling Google Calendar API with params: %s", params)
+        events_result = service.events().list(**params).execute()
         items = events_result.get("items", [])
 
         upcoming_events = []

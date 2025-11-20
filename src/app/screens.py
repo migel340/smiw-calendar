@@ -121,12 +121,84 @@ def get_structured_events() -> List[Dict[str, Any]]:
     return result
 
 
+def get_events_today_and_tomorrow() -> List[Dict[str, Any]]:
+    from src.config import TIMEZONE
+    from zoneinfo import ZoneInfo
+    from datetime import timedelta
+    
+    result: List[Dict[str, Any]] = []
+    
+    tz = ZoneInfo(TIMEZONE)
+    now = datetime.datetime.now(tz)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_after_tomorrow_start = today_start + timedelta(days=2)
+    
+    try:
+        time_min_utc = today_start.astimezone(datetime.timezone.utc)
+        time_max_utc = day_after_tomorrow_start.astimezone(datetime.timezone.utc)
+        
+        logger.debug("Requesting events: time_min=%s time_max=%s", 
+                    time_min_utc.isoformat(), time_max_utc.isoformat())
+        
+        events = get_list_events(
+            max_results=250,
+            time_min=time_min_utc.isoformat(),
+            time_max=time_max_utc.isoformat()
+        ) or []
+        
+        logger.info("Fetched %d events from API for today/tomorrow window", len(events))
+    except Exception:
+        logger.exception("Failed to fetch events for today/tomorrow")
+        return result
+    
+    for event in events:
+        try:
+            title = getattr(event, "summary", None)
+            if not title:
+                continue
+            
+            start_obj = getattr(event, "start", None)
+            end_obj = getattr(event, "end", None)
+            is_all_day = bool(getattr(event, "is_all_day", False))
+            
+            start_dt = parse_event_datetime(start_obj, is_all_day)
+            end_dt = parse_event_datetime(end_obj, is_all_day)
+            
+            if not start_dt:
+                continue
+            
+            if start_dt >= day_after_tomorrow_start:
+                logger.warning("Rejecting far-future event: %s (start=%s)", title, start_dt)
+                continue
+            
+            if end_dt and end_dt < today_start:
+                logger.warning("Rejecting past event: %s (end=%s)", title, end_dt)
+                continue
+            
+            start_str = format_datetime(start_dt, is_all_day)
+            end_str = format_datetime(end_dt, is_all_day) if end_dt and not is_all_day else None
+            
+            result.append({
+                "title": title,
+                "start": start_str,
+                "end": end_str,
+                "is_all_day": is_all_day,
+            })
+        except Exception:
+            logger.exception("Error processing event: %r", event)
+            continue
+    
+    result.sort(key=lambda e: (e["start"] is None, e["start"]))
+    logger.info("Returning %d events for today/tomorrow after filtering", len(result))
+    return result
+
+
 if __name__ == "__main__":
     tasks2 = get_structured_tasks()
     print(tasks2)
     for task in tasks2:
         print(task)
-    events = get_structured_events()
+    events = get_events_today_and_tomorrow()
     print(events)
     for event in events:
         print(event)

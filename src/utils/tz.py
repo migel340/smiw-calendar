@@ -69,6 +69,6 @@ def format_datetime(dt: Optional[datetime.datetime], is_all_day: bool = False) -
     try:
         if is_all_day:
             return dt.strftime("%Y-%m-%d")
-        return dt.strftime("%Y-%m-%d %H:%M")
+        return dt.strftime("%H:%M")
     except Exception:
         return None
