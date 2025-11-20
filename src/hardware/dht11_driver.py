@@ -58,7 +58,7 @@ if __name__ == "__main__":
         print("Reading DHT11 (Ctrl-C to stop)")
         try:
             while True:
-                r = read_dht11_with_retries(device, retries=3, delay=1.5)
+                r = read_dht11(device)
                 if r is None:
                     print("Failed to get reading from DHT11.")
                 else:
