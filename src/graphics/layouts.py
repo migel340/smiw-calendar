@@ -1,3 +1,4 @@
+
 from src.hardware import get_epd
 from PIL import Image, ImageDraw, ImageFont
 from src.app.screens import get_structured_events, get_structured_tasks
