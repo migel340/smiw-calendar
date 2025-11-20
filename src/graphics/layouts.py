@@ -1,6 +1,6 @@
 from src.hardware import get_epd
 from PIL import Image, ImageDraw, ImageFont
-from src.app.screens import get_structured_tasks, get_events_today_and_tomorrow
+from src.services.structure_parser import get_structured_tasks, get_events_today_and_tomorrow
 from typing import List, Dict, Any
 from src.config import FONT_PATH
 from pathlib import Path

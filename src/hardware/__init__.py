@@ -1,5 +1,5 @@
-from src.config import EDP_DRIVER
-if EDP_DRIVER == 'mock':
+from src.config import EPD_DRIVER
+if EPD_DRIVER == 'mock':
     from src.hardware.epd_mock import EPD
 else:
     from hardware.epd_waveshare_driver import EPD
