@@ -1,4 +1,4 @@
-from PIL import ImageDraw, ImageFont, Image
+from PIL import ImageDraw, ImageFont
 from typing import List
 
 

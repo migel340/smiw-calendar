@@ -62,7 +62,26 @@ def draw_tasks_screen(tasks: List[Dict[str, Any]]) -> Image.Image:
     return img
 
 
-def test_draw_tasks_screen():
+def draw_dht11(temperature: float, humidity: float) -> Image.Image:
+    try:
+        epd = get_epd()
+        img = Image.new("1", (epd.width, epd.height), 1)
+        draw = ImageDraw.Draw(img)
+
+        font_small = _load_font(size=14)
+        font_large = _load_font(size=24)
+        draw.text((5, 5), "DHT11", fill=0, font=font_large)
+        draw.text((5, 40), "Temperature:", fill=0, font=font_small)
+        draw.text((15, 60), f"{temperature:.1f} °C", fill=0, font=font_small)
+        draw.text((5, 100), "Humidity:", fill=0, font=font_small)
+        draw.text((15, 120), f"{humidity:.1f} %", fill=0, font=font_small)
+
+        return img
+    except Exception as e:
+        logger.exception("Error drawing DHT11 data: %s", e)
+
+if __name__ == "__main__":
+
     logger.info("Testing draw_tasks_screen...")
     tasks = get_structured_tasks()
     logger.info("Fetched %d tasks for testing", len(tasks))
@@ -71,6 +90,6 @@ def test_draw_tasks_screen():
     epd.init()
     epd.display(img)
     logger.info("Displayed tasks screen for testing")
-
-if __name__ == "__main__":
-    test_draw_tasks_screen()
+    logger.info("Testing draw_dht11...")
+    img = draw_dht11(23.5, 45.0)
+    epd.display(img)    

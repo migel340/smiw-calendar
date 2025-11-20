@@ -60,7 +60,6 @@ class EPD:
             try:
                 image = image_or_callable()
             except TypeError:
-                # try passing self
                 image = image_or_callable(self)
             except Exception:
                 logger.exception("Callable provided to display() raised an exception")
