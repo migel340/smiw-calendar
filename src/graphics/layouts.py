@@ -1,3 +1,4 @@
+from time import sleep
 from src.hardware import get_epd
 from PIL import Image, ImageDraw, ImageFont
 from src.services.structure_parser import get_structured_tasks, get_events_today_and_tomorrow
@@ -150,11 +151,11 @@ if __name__ == "__main__":
     logger.info("Fetched %d tasks for testing", len(tasks))
     img = draw_tasks_screen(tasks)
     epd.display(img)
-    
+    sleep(2)
     logger.info("Testing draw_dht11...")
     img = draw_dht11(23.5, 45.0)
     epd.display(img)    
-    
+    sleep(2)
     today_events, tomorrow_events = get_events_today_and_tomorrow()
     logger.info("Fetched %d events for today and %d events for tomorrow", len(today_events), len(tomorrow_events))
     if today_events:
@@ -162,7 +163,7 @@ if __name__ == "__main__":
         epd.display(img_today)
     else:
         logger.info("No events for today to display")
-
+    sleep(2)
     if tomorrow_events:
         img_tomorrow = draw_events_screen(tomorrow_events)
         epd.display(img_tomorrow)
