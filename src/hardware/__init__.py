@@ -2,7 +2,7 @@ from src.config import EDP_DRIVER
 if EDP_DRIVER == 'mock':
     from src.hardware.epd_mock import EPD
 else:
-    from src.hardware.epd_waveshare import EPD
+    from hardware.epd_waveshare_driver import EPD
 
 def get_epd() -> EPD:
     return EPD()
