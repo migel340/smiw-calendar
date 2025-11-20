@@ -55,7 +55,7 @@ def draw_tasks_screen(tasks: List[Dict[str, Any]]) -> Image.Image:
                 draw.text((5, y_offset), line, fill=0, font=font_small)
                 y_offset += line_height
 
-                wrapped_due = text_wraper(due_string, draw, font_small, epd.width - 15)
+            wrapped_due = text_wraper(due_string, draw, font_small, epd.width - 15)
             for line in wrapped_due:
                 draw.text((10, y_offset), line, fill=0, font=font_small)
                 y_offset += line_height
@@ -123,7 +123,7 @@ def draw_events_screen(events: List[Dict[str, Any]]) -> Image.Image:
     return img
 
 
-def draw_dht11(temperature: float, humidity: float) -> Image.Image:
+def draw_dht11(temperature: float, humidity: float) -> Image.Image | None:
     try:
         epd = get_epd()
         img = Image.new("1", (epd.width, epd.height), 1)
