@@ -1,6 +1,3 @@
-
-from pydoc import text
-from re import L
 from src.hardware import get_epd
 from PIL import Image, ImageDraw, ImageFont
 from src.app.screens import get_structured_tasks, get_events_today_and_tomorrow
@@ -122,9 +119,7 @@ def draw_events_screen(events: List[Dict[str, Any]]) -> Image.Image:
                 for line in wrapped_start:
                     draw.text((10, y_offset), line, fill=0, font=font_small)
                     y_offset += line_height
-
     return img
-
 
 
 def draw_dht11(temperature: float, humidity: float) -> Image.Image:
@@ -149,21 +144,27 @@ if __name__ == "__main__":
 
     epd = get_epd()
     epd.init()
-    
-    # logger.info("Testing draw_tasks_screen...")
-    # tasks = get_structured_tasks()
-    # logger.info("Fetched %d tasks for testing", len(tasks))
-    # img = draw_tasks_screen(tasks)
-    
 
-    # epd.display(img)
-
-    # logger.info("Testing draw_events_screen...")
-
-    # logger.info("Testing draw_dht11...")
-    # img = draw_dht11(23.5, 45.0)
-    # epd.display(img)    
-    events = get_events_today_and_tomorrow()
-    logger.info("Fetched %d events for testing (today/tomorrow only)", len(events))
-    img = draw_events_screen(events)
+    logger.info("Testing draw_tasks_screen...")
+    tasks = get_structured_tasks()
+    logger.info("Fetched %d tasks for testing", len(tasks))
+    img = draw_tasks_screen(tasks)
     epd.display(img)
+    
+    logger.info("Testing draw_dht11...")
+    img = draw_dht11(23.5, 45.0)
+    epd.display(img)    
+    
+    today_events, tomorrow_events = get_events_today_and_tomorrow()
+    logger.info("Fetched %d events for today and %d events for tomorrow", len(today_events), len(tomorrow_events))
+    if today_events:
+        img_today = draw_events_screen(today_events)
+        epd.display(img_today)
+    else:
+        logger.info("No events for today to display")
+
+    if tomorrow_events:
+        img_tomorrow = draw_events_screen(tomorrow_events)
+        epd.display(img_tomorrow)
+    else:
+        logger.info("No events for tomorrow to display")

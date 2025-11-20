@@ -121,7 +121,7 @@ def get_structured_events() -> List[Dict[str, Any]]:
     return result
 
 
-def get_events_today_and_tomorrow() -> List[Dict[str, Any]]:
+def get_events_today_and_tomorrow() -> tuple[list[Dict[str, Any]], list[Dict[str, Any]]]:
     from src.config import TIMEZONE
     from zoneinfo import ZoneInfo
     from datetime import timedelta
@@ -151,6 +151,9 @@ def get_events_today_and_tomorrow() -> List[Dict[str, Any]]:
         logger.exception("Failed to fetch events for today/tomorrow")
         return result
     
+    today_list: List[Dict[str, Any]] = []
+    tomorrow_list: List[Dict[str, Any]] = []
+
     for event in events:
         try:
             title = getattr(event, "summary", None)
@@ -170,27 +173,46 @@ def get_events_today_and_tomorrow() -> List[Dict[str, Any]]:
             if start_dt >= day_after_tomorrow_start:
                 logger.warning("Rejecting far-future event: %s (start=%s)", title, start_dt)
                 continue
-            
+
             if end_dt and end_dt < today_start:
                 logger.warning("Rejecting past event: %s (end=%s)", title, end_dt)
                 continue
-            
+
             start_str = format_datetime(start_dt, is_all_day)
             end_str = format_datetime(end_dt, is_all_day) if end_dt and not is_all_day else None
-            
-            result.append({
-                "title": title,
-                "start": start_str,
-                "end": end_str,
-                "is_all_day": is_all_day,
-            })
+
+
+            tom_start = today_start + timedelta(days=1)
+            if today_start <= start_dt < tom_start:
+                today_list.append({
+                    "title": title,
+                    "start": start_str,
+                    "end": end_str,
+                    "is_all_day": is_all_day,
+                })
+            elif tom_start <= start_dt < day_after_tomorrow_start:
+                tomorrow_list.append({
+                    "title": title,
+                    "start": start_str,
+                    "end": end_str,
+                    "is_all_day": is_all_day,
+                })
+            else:
+                if start_dt < today_start and (end_dt is None or end_dt >= today_start):
+                    today_list.append({
+                        "title": title,
+                        "start": start_str,
+                        "end": end_str,
+                        "is_all_day": is_all_day,
+                    })
         except Exception:
             logger.exception("Error processing event: %r", event)
             continue
     
-    result.sort(key=lambda e: (e["start"] is None, e["start"]))
-    logger.info("Returning %d events for today/tomorrow after filtering", len(result))
-    return result
+    today_list.sort(key=lambda e: (e["start"] is None, e["start"]))
+    tomorrow_list.sort(key=lambda e: (e["start"] is None, e["start"]))
+    logger.info("Returning %d events for today and %d events for tomorrow after filtering", len(today_list), len(tomorrow_list))
+    return today_list, tomorrow_list
 
 
 if __name__ == "__main__":

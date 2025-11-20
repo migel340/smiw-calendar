@@ -47,14 +47,6 @@ class EPD:
                 logger.exception("Failed to clear EPD")
 
     def display(self, image_or_callable):
-        """Display an image on the e-paper display.
-
-        Accepts either:
-        - a PIL `Image.Image` instance
-        - a callable returning a PIL Image. If the callable accepts one
-          argument, the wrapper instance will be passed.
-        """
-        # Resolve callable -> Image
         image = None
         if callable(image_or_callable):
             try:

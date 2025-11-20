@@ -18,6 +18,6 @@ GOOGLE_API_SCOPES = [TASKS_SCOPES, CALENDAR_SCOPES]
 
 TIMEZONE = os.getenv("TIMEZONE", "UTC")
 
-EDP_DRIVER = os.getenv('EPD_BACKEND', 'mock')
+EPD_DRIVER = os.getenv('EPD_DRIVER', 'mock')
 
 FONT_PATH = os.getenv('FONT_PATH', None)
