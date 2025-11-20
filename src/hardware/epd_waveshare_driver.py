@@ -1,129 +1,110 @@
 import sys
 import os
+import logging
+from waveshare_lib import epd2in13_V4
+from PIL import Image
+
+from src.config import EPD_WIDTH, EPD_HEIGHT
 picdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'pic')
 libdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'lib')
 if os.path.exists(libdir):
     sys.path.append(libdir)
 
-import logging
-from waveshare_lib import epd2in13_V4
-import time
-from PIL import Image,ImageDraw,ImageFont
-import traceback
-
-logging.basicConfig(level=logging.DEBUG)
-
-try:
-    logging.info("epd2in13_V4 Demo")
-
-    epd = epd2in13_V4.EPD()
-    logging.info("init and Clear")
-    epd.init()
-    epd.Clear(0xFF)
-
-    # Drawing on the image
-    font15 = ImageFont.truetype(os.path.join(picdir, 'Font.ttc'), 15)
-    font24 = ImageFont.truetype(os.path.join(picdir, 'Font.ttc'), 24)
-
-    if 1:
-        logging.info("E-paper refresh")
-        epd.init()
-        logging.info("1.Drawing on the image...")
-        image = Image.new('1', (epd.height, epd.width), 255)  # 255: clear the frame
-        draw = ImageDraw.Draw(image)
-        draw.rectangle([(0,0),(50,50)],outline = 0)
-        draw.rectangle([(55,0),(100,50)],fill = 0)
-        draw.line([(0,0),(50,50)], fill = 0,width = 1)
-        draw.line([(0,50),(50,0)], fill = 0,width = 1)
-        draw.chord((10, 60, 50, 100), 0, 360, fill = 0)
-        draw.ellipse((55, 60, 95, 100), outline = 0)
-        draw.pieslice((55, 60, 95, 100), 90, 180, outline = 0)
-        draw.pieslice((55, 60, 95, 100), 270, 360, fill = 0)
-        draw.polygon([(110,0),(110,50),(150,25)],outline = 0)
-        draw.polygon([(190,0),(190,50),(150,25)],fill = 0)
-        draw.text((120, 60), 'e-Paper demo', font = font15, fill = 0)
-        draw.text((110, 90), u'微雪电子', font = font24, fill = 0)
-        # image = image.rotate(180) # rotate
-        epd.display(epd.getbuffer(image))
-        time.sleep(2)
-
-        # read bmp file
-        logging.info("2.read bmp file...")
-        image = Image.open(os.path.join(picdir, '2in13.bmp'))
-        epd.display(epd.getbuffer(image))
-        time.sleep(2)
-
-        # read bmp file on window
-        logging.info("3.read bmp file on window...")
-        # epd.Clear(0xFF)
-        image1 = Image.new('1', (epd.height, epd.width), 255)  # 255: clear the frame
-        bmp = Image.open(os.path.join(picdir, '100x100.bmp'))
-        image1.paste(bmp, (2,2))
-        epd.display(epd.getbuffer(image1))
-        time.sleep(2)
-    else:
-        logging.info("E-paper refreshes quickly")
-        epd.init_fast()
-        logging.info("1.Drawing on the image...")
-        image = Image.new('1', (epd.height, epd.width), 255)  # 255: clear the frame
-        draw = ImageDraw.Draw(image)
-        draw.rectangle([(0,0),(50,50)],outline = 0)
-        draw.rectangle([(55,0),(100,50)],fill = 0)
-        draw.line([(0,0),(50,50)], fill = 0,width = 1)
-        draw.line([(0,50),(50,0)], fill = 0,width = 1)
-        draw.chord((10, 60, 50, 100), 0, 360, fill = 0)
-        draw.ellipse((55, 60, 95, 100), outline = 0)
-        draw.pieslice((55, 60, 95, 100), 90, 180, outline = 0)
-        draw.pieslice((55, 60, 95, 100), 270, 360, fill = 0)
-        draw.polygon([(110,0),(110,50),(150,25)],outline = 0)
-        draw.polygon([(190,0),(190,50),(150,25)],fill = 0)
-        draw.text((120, 60), 'e-Paper demo', font = font15, fill = 0)
-        draw.text((110, 90), u'微雪电子', font = font24, fill = 0)
-        # image = image.rotate(180) # rotate
-        epd.display_fast(epd.getbuffer(image))
-        time.sleep(2)
-
-        # read bmp file
-        logging.info("2.read bmp file...")
-        image = Image.open(os.path.join(picdir, '2in13.bmp'))
-        epd.display_fast(epd.getbuffer(image))
-        time.sleep(2)
-
-        # read bmp file on window
-        logging.info("3.read bmp file on window...")
-        # epd.Clear(0xFF)
-        image1 = Image.new('1', (epd.height, epd.width), 255)  # 255: clear the frame
-        bmp = Image.open(os.path.join(picdir, '100x100.bmp'))
-        image1.paste(bmp, (2,2))
-        epd.display_fast(epd.getbuffer(image1))
-        time.sleep(2)
 
 
-    # # partial update
-    logging.info("4.show time...")
-    time_image = Image.new('1', (epd.height, epd.width), 255)
-    time_draw = ImageDraw.Draw(time_image)
-    epd.displayPartBaseImage(epd.getbuffer(time_image))
-    num = 0
-    while (True):
-        time_draw.rectangle((120, 80, 220, 105), fill = 255)
-        time_draw.text((120, 80), time.strftime('%H:%M:%S'), font = font24, fill = 0)
-        epd.displayPartial(epd.getbuffer(time_image))
-        num = num + 1
-        if(num == 10):
-            break
+logger = logging.getLogger(__name__)
 
-    logging.info("Clear...")
-    epd.init()
-    epd.Clear(0xFF)
 
-    logging.info("Goto Sleep...")
-    epd.sleep()
+class EPD:
 
-except IOError as e:
-    logging.info(e)
+    width = EPD_WIDTH
+    height = EPD_HEIGHT
 
-except KeyboardInterrupt:
-    logging.info("ctrl + c:")
-    epd2in13_V4.epdconfig.module_exit(cleanup=True)
-    exit()
+    def __init__(self):
+        self._hw = None
+
+    def _ensure_hw(self):
+        if self._hw is None:
+            try:
+                self._hw = epd2in13_V4.EPD()
+                self._hw.init()
+                try:
+                    self._hw.Clear(0xFF)
+                except Exception:
+                    logger.debug("EPD Clear() not available or failed")
+            except Exception:
+                logger.exception("Failed to initialize hardware EPD")
+                self._hw = None
+
+    def init(self):
+        self._ensure_hw()
+
+    def clear(self):
+        if self._hw:
+            try:
+                self._hw.Clear(0xFF)
+            except Exception:
+                logger.exception("Failed to clear EPD")
+
+    def display(self, image_or_callable):
+        """Display an image on the e-paper display.
+
+        Accepts either:
+        - a PIL `Image.Image` instance
+        - a callable returning a PIL Image. If the callable accepts one
+          argument, the wrapper instance will be passed.
+        """
+        # Resolve callable -> Image
+        image = None
+        if callable(image_or_callable):
+            try:
+                image = image_or_callable()
+            except TypeError:
+                # try passing self
+                image = image_or_callable(self)
+            except Exception:
+                logger.exception("Callable provided to display() raised an exception")
+                raise
+        else:
+            image = image_or_callable
+
+        if not isinstance(image, Image.Image):
+            raise TypeError("display() expects a PIL Image or callable returning Image")
+
+
+        try:
+            img = image.convert("1")
+        except Exception:
+            img = Image.frombytes("1", image.size, image.tobytes())
+
+        
+        if img.size != (self.width, self.height):
+            try:
+                img = img.resize((self.width, self.height))
+            except Exception:
+                logger.exception("Failed to resize image to EPD dimensions")
+
+
+        self._ensure_hw()
+
+        if self._hw:
+            try:
+                buf = self._hw.getbuffer(img)
+                self._hw.display(buf)
+                return
+            except Exception:
+                logger.exception("Hardware display failed")
+
+       
+        logger.error("EPD hardware not available or display failed; cannot show image on device")
+        raise RuntimeError("EPD hardware not available or display failed")
+
+    def sleep(self):
+        if self._hw:
+            try:
+                if hasattr(self._hw, "sleep"):
+                    self._hw.sleep()
+                elif hasattr(self._hw, "Sleep"):
+                    self._hw.Sleep()
+            except Exception:
+                logger.exception("Failed to put EPD to sleep")
