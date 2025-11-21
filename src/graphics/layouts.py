@@ -1,7 +1,8 @@
+from operator import ge
 from time import sleep
 from src.hardware import get_epd
 from PIL import Image, ImageDraw, ImageFont
-from src.services.structure_parser import get_structured_tasks, get_events_today_and_tomorrow
+from src.services.structure_parser import get_structured_tasks, get_events_today, get_events_tomorrow
 from typing import List, Dict, Any
 from src.config import FONT_PATH
 from pathlib import Path
@@ -22,7 +23,6 @@ def _load_font(size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype(str(font), size)
 
 def draw_tasks_screen(tasks: List[Dict[str, Any]]) -> Image.Image:
-    epd = get_epd()
     img = Image.new("1", (epd.width, epd.height), 1)
     draw = ImageDraw.Draw(img)
 
@@ -63,7 +63,6 @@ def draw_tasks_screen(tasks: List[Dict[str, Any]]) -> Image.Image:
 
 
 def draw_events_screen(events: List[Dict[str, Any]]) -> Image.Image:
-    epd = get_epd()
     img = Image.new("1", (epd.width, epd.height), 1)
     draw = ImageDraw.Draw(img)
     
@@ -75,6 +74,10 @@ def draw_events_screen(events: List[Dict[str, Any]]) -> Image.Image:
     
     y_offset = 5
     line_height = 16
+
+    if not events:
+        draw.text((5, y_offset), "No events", fill=0, font=font_large)
+        return img
 
     for event in events:
         is_all_day = bool(event.get("is_all_day", False))
@@ -156,16 +159,11 @@ if __name__ == "__main__":
     img = draw_dht11(23.5, 45.0)
     epd.display(img)    
     sleep(2)
-    today_events, tomorrow_events = get_events_today_and_tomorrow()
+    today_events = get_events_today()
+    tomorrow_events = get_events_tomorrow()
     logger.info("Fetched %d events for today and %d events for tomorrow", len(today_events), len(tomorrow_events))
-    if today_events:
-        img_today = draw_events_screen(today_events)
-        epd.display(img_today)
-    else:
-        logger.info("No events for today to display")
+    img_today = draw_events_screen(today_events)
+    epd.display(img_today)
     sleep(2)
-    if tomorrow_events:
-        img_tomorrow = draw_events_screen(tomorrow_events)
-        epd.display(img_tomorrow)
-    else:
-        logger.info("No events for tomorrow to display")
+    img_tomorrow = draw_events_screen(tomorrow_events)
+    epd.display(img_tomorrow)

@@ -121,98 +121,119 @@ def get_structured_events() -> List[Dict[str, Any]]:
     return result
 
 
-def get_events_today_and_tomorrow() -> tuple[list[Dict[str, Any]], list[Dict[str, Any]]]:
+def get_events() -> list[Dict[str, Any]]:
+    logger.warning("get_events() is deprecated; use get_events_today() or get_events_tomorrow()")
+    return get_events_today()
+
+
+def _fetch_events_in_window(start_dt: datetime.datetime, end_dt: datetime.datetime, max_results: int = 250) -> List[Dict[str, Any]]:
+    """Fetch raw events from Google Calendar between start_dt and end_dt (both tz-aware)."""
+    try:
+        time_min_utc = start_dt.astimezone(datetime.timezone.utc)
+        time_max_utc = end_dt.astimezone(datetime.timezone.utc)
+        logger.debug("Requesting events: time_min=%s time_max=%s", time_min_utc.isoformat(), time_max_utc.isoformat())
+        events = get_list_events(max_results=max_results, time_min=time_min_utc.isoformat(), time_max=time_max_utc.isoformat()) or []
+        logger.info("Fetched %d events from API for window %s - %s", len(events), start_dt, end_dt)
+        return events
+    except Exception:
+        logger.exception("Failed to fetch events for window %s - %s", start_dt, end_dt)
+        return []
+
+
+def get_events_today() -> List[Dict[str, Any]]:
+    """Return structured events that take place (or span) during today in configured timezone."""
     from src.config import TIMEZONE
     from zoneinfo import ZoneInfo
     from datetime import timedelta
-    
-    result: List[Dict[str, Any]] = []
-    
+
     tz = ZoneInfo(TIMEZONE)
     now = datetime.datetime.now(tz)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    day_after_tomorrow_start = today_start + timedelta(days=2)
-    
-    try:
-        time_min_utc = today_start.astimezone(datetime.timezone.utc)
-        time_max_utc = day_after_tomorrow_start.astimezone(datetime.timezone.utc)
-        
-        logger.debug("Requesting events: time_min=%s time_max=%s", 
-                    time_min_utc.isoformat(), time_max_utc.isoformat())
-        
-        events = get_list_events(
-            max_results=250,
-            time_min=time_min_utc.isoformat(),
-            time_max=time_max_utc.isoformat()
-        ) or []
-        
-        logger.info("Fetched %d events from API for today/tomorrow window", len(events))
-    except Exception:
-        logger.exception("Failed to fetch events for today/tomorrow")
-        return result
-    
-    today_list: List[Dict[str, Any]] = []
-    tomorrow_list: List[Dict[str, Any]] = []
+    tomorrow_start = today_start + timedelta(days=1)
 
+    events = _fetch_events_in_window(today_start, tomorrow_start)
+
+    today_list: List[Dict[str, Any]] = []
     for event in events:
         try:
             title = getattr(event, "summary", None)
             if not title:
                 continue
-            
+
             start_obj = getattr(event, "start", None)
             end_obj = getattr(event, "end", None)
             is_all_day = bool(getattr(event, "is_all_day", False))
-            
+
             start_dt = parse_event_datetime(start_obj, is_all_day)
             end_dt = parse_event_datetime(end_obj, is_all_day)
-            
             if not start_dt:
                 continue
-            
-            if start_dt >= day_after_tomorrow_start:
-                logger.warning("Rejecting far-future event: %s (start=%s)", title, start_dt)
-                continue
 
-            if end_dt and end_dt < today_start:
-                logger.warning("Rejecting past event: %s (end=%s)", title, end_dt)
-                continue
-
-            start_str = format_datetime(start_dt, is_all_day)
-            end_str = format_datetime(end_dt, is_all_day) if end_dt and not is_all_day else None
-
-
-            tom_start = today_start + timedelta(days=1)
-            if today_start <= start_dt < tom_start:
+            if today_start <= start_dt < tomorrow_start or (start_dt < today_start and (end_dt is None or end_dt >= today_start)):
+                start_str = format_datetime(start_dt, is_all_day)
+                end_str = format_datetime(end_dt, is_all_day) if end_dt and not is_all_day else None
                 today_list.append({
                     "title": title,
                     "start": start_str,
                     "end": end_str,
                     "is_all_day": is_all_day,
                 })
-            elif tom_start <= start_dt < day_after_tomorrow_start:
+        except Exception:
+            logger.exception("Error processing event: %r", event)
+            continue
+
+    today_list.sort(key=lambda e: (e["start"] is None, e["start"]))
+    logger.info("Returning %d events for today after filtering", len(today_list))
+    return today_list
+
+
+def get_events_tomorrow() -> List[Dict[str, Any]]:
+    """Return structured events that take place (or span) tomorrow in configured timezone."""
+    from src.config import TIMEZONE
+    from zoneinfo import ZoneInfo
+    from datetime import timedelta
+
+    tz = ZoneInfo(TIMEZONE)
+    now = datetime.datetime.now(tz)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow_start = today_start + timedelta(days=1)
+    day_after_tomorrow_start = today_start + timedelta(days=2)
+
+    events = _fetch_events_in_window(tomorrow_start, day_after_tomorrow_start)
+
+    tomorrow_list: List[Dict[str, Any]] = []
+    for event in events:
+        try:
+            title = getattr(event, "summary", None)
+            if not title:
+                continue
+
+            start_obj = getattr(event, "start", None)
+            end_obj = getattr(event, "end", None)
+            is_all_day = bool(getattr(event, "is_all_day", False))
+
+            start_dt = parse_event_datetime(start_obj, is_all_day)
+            end_dt = parse_event_datetime(end_obj, is_all_day)
+            if not start_dt:
+                continue
+
+            if tomorrow_start <= start_dt < day_after_tomorrow_start or (start_dt < tomorrow_start and (end_dt is None or end_dt >= tomorrow_start)):
+                start_str = format_datetime(start_dt, is_all_day)
+                end_str = format_datetime(end_dt, is_all_day) if end_dt and not is_all_day else None
                 tomorrow_list.append({
                     "title": title,
                     "start": start_str,
                     "end": end_str,
                     "is_all_day": is_all_day,
                 })
-            else:
-                if start_dt < today_start and (end_dt is None or end_dt >= today_start):
-                    today_list.append({
-                        "title": title,
-                        "start": start_str,
-                        "end": end_str,
-                        "is_all_day": is_all_day,
-                    })
         except Exception:
             logger.exception("Error processing event: %r", event)
             continue
-    
-    today_list.sort(key=lambda e: (e["start"] is None, e["start"]))
+
     tomorrow_list.sort(key=lambda e: (e["start"] is None, e["start"]))
-    logger.info("Returning %d events for today and %d events for tomorrow after filtering", len(today_list), len(tomorrow_list))
-    return today_list, tomorrow_list
+    logger.info("Returning %d events for tomorrow after filtering", len(tomorrow_list))
+    return tomorrow_list
+
 
 
 if __name__ == "__main__":
@@ -220,7 +241,12 @@ if __name__ == "__main__":
     print(tasks2)
     for task in tasks2:
         print(task)
-    events = get_events_today_and_tomorrow()
-    print(events)
-    for event in events:
+    events_today = get_events_today()
+    print("Events today:", events_today)
+    for event in events_today:
+        print(event)
+
+    events_tomorrow = get_events_tomorrow()
+    print("Events tomorrow:", events_tomorrow)
+    for event in events_tomorrow:
         print(event)
