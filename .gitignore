@@ -9,3 +9,4 @@ out/*
 src/.DS_Store
 src/services/google_secrets/*
 .vscode/
+.venv/
