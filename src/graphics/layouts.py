@@ -1,4 +1,3 @@
-from operator import ge
 from time import sleep
 from src.hardware import get_epd
 from PIL import Image, ImageDraw, ImageFont
