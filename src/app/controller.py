@@ -26,6 +26,9 @@ logger = logging.getLogger(__name__)
 # Data refresh interval in seconds (5 minutes)
 DATA_REFRESH_INTERVAL = 300
 
+# DHT11 refresh interval in seconds
+DHT11_REFRESH_INTERVAL = 5
+
 
 class AppController:
     """
@@ -66,6 +69,7 @@ class AppController:
         self._running = False
         self._stop_event = Event()
         self._refresh_thread: Optional[Thread] = None
+        self._dht11_thread: Optional[Thread] = None
     
     @property
     def screen_manager(self) -> ScreenManager:
@@ -105,10 +109,13 @@ class AppController:
         try:
             image = self._screen_manager.render_current()
             if image:
-                # Always use full refresh to avoid ghosting/text bugs
-                self._epd.display(image)
-                logger.debug("Display updated with screen: %s", 
-                           self._screen_manager.current_screen.name if self._screen_manager.current_screen else "None")
+                if use_partial and hasattr(self._epd, 'display_partial'):
+                    self._epd.display_partial(image)
+                else:
+                    self._epd.display(image)
+                logger.debug("Display updated with screen: %s (partial=%s)", 
+                           self._screen_manager.current_screen.name if self._screen_manager.current_screen else "None",
+                           use_partial)
         except Exception as e:
             logger.exception("Failed to update display: %s", e)
     
@@ -140,6 +147,27 @@ class AppController:
         
         logger.info("Data refresh thread stopped")
     
+    def _dht11_refresh_loop(self) -> None:
+        """Background thread for DHT11 display refresh with partial update."""
+        logger.info("DHT11 refresh thread started")
+        
+        while not self._stop_event.is_set():
+            try:
+                # Only refresh if we're on the DHT11 screen
+                if self._screen_manager.current_screen == self._dht11_screen:
+                    # Force refresh of DHT11 data
+                    self._dht11_screen.get_data()
+                    # Use partial refresh for DHT11 (only values change)
+                    self._update_display(use_partial=True)
+                    logger.debug("DHT11 display refreshed (partial)")
+            except Exception as e:
+                logger.exception("Error in DHT11 refresh: %s", e)
+            
+            # Wait for DHT11 refresh interval
+            self._stop_event.wait(timeout=DHT11_REFRESH_INTERVAL)
+        
+        logger.info("DHT11 refresh thread stopped")
+
     def handle_button_press(self) -> None:
         """Handle button press - switch to next screen."""
         logger.info("Button pressed - switching screen")
@@ -184,6 +212,10 @@ class AppController:
             self._refresh_thread = Thread(target=self._refresh_data_loop, daemon=True)
             self._refresh_thread.start()
             
+            # Start DHT11 refresh thread
+            self._dht11_thread = Thread(target=self._dht11_refresh_loop, daemon=True)
+            self._dht11_thread.start()
+            
             logger.info("Application running. Press button to switch screens.")
             
             # Main loop - handle button presses
@@ -215,6 +247,11 @@ class AppController:
         if self._refresh_thread:
             self._refresh_thread.join(timeout=5)
             self._refresh_thread = None
+        
+        # Wait for DHT11 thread
+        if self._dht11_thread:
+            self._dht11_thread.join(timeout=5)
+            self._dht11_thread = None
         
         # Clear display
         if self._epd:
