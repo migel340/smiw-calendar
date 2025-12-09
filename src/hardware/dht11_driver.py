@@ -5,16 +5,18 @@ import random
 
 logger = logging.getLogger(__name__)
 
+# DHT11 Pin - GPIO 22 (physical pin 15)
+# Avoid GPIO 4 as it can have conflicts with 1-wire interface
+DHT_PIN = 22
+
 # Try to import hardware libraries, fall back to mock
 _HAVE_HARDWARE = False
 try:
-    import board
-    import adafruit_dht
+    import Adafruit_DHT
     _HAVE_HARDWARE = True
 except (ImportError, NotImplementedError) as e:
     logger.warning("DHT11 hardware not available, using mock: %s", e)
-    board = None
-    adafruit_dht = None
+    Adafruit_DHT = None
 
 _dht11: Optional[Any] = None
 
@@ -32,15 +34,26 @@ class _MockDHT11:
         self._base_humidity = 50.0
         logger.info("[MOCK] DHT11 sensor created")
     
-    @property
-    def temperature(self) -> float:
-        # Return slightly varying mock temperature
-        return self._base_temp + random.uniform(-2.0, 2.0)
+    def read(self) -> Optional[DHTReading]:
+        # Return slightly varying mock values
+        temp = self._base_temp + random.uniform(-2.0, 2.0)
+        hum = self._base_humidity + random.uniform(-5.0, 5.0)
+        return DHTReading(temp, hum)
+
+
+class _RealDHT11:
+    """Real DHT11 sensor wrapper using Adafruit_DHT library."""
     
-    @property
-    def humidity(self) -> float:
-        # Return slightly varying mock humidity
-        return self._base_humidity + random.uniform(-5.0, 5.0)
+    def __init__(self, pin: int):
+        self.pin = pin
+        self.sensor = Adafruit_DHT.DHT11
+        logger.info("DHT11 sensor initialized on GPIO %d", pin)
+    
+    def read(self) -> Optional[DHTReading]:
+        humidity, temperature = Adafruit_DHT.read_retry(self.sensor, self.pin, retries=5, delay_seconds=2)
+        if humidity is not None and temperature is not None:
+            return DHTReading(float(temperature), float(humidity))
+        return None
 
 
 def _initialize_dht11() -> Optional[Any]:
@@ -49,44 +62,23 @@ def _initialize_dht11() -> Optional[Any]:
         return _MockDHT11()
     
     try:
-        dht_device = adafruit_dht.DHT11(board.D4, use_pulseio=False)
-        return dht_device
+        return _RealDHT11(DHT_PIN)
     except Exception as exc:
         logger.exception("Failed to initialize DHT11: %s", exc)
         return None
 
 
-def read_dht11(dht_device: Any, max_retries: int = 5) -> Optional[DHTReading]:
+def read_dht11(dht_device: Any) -> Optional[DHTReading]:
     """
-    Read from DHT11 with retries.
+    Read from DHT11.
     
-    DHT11 is unreliable and often returns errors like:
-    "A full buffer was not returned. Try again."
-    
-    We retry up to max_retries times with 2 second delay between attempts.
+    The Adafruit_DHT library handles retries internally via read_retry().
     """
-    for attempt in range(max_retries):
-        try:
-            temperature = dht_device.temperature
-            humidity = dht_device.humidity
-            if temperature is not None and humidity is not None:
-                return DHTReading(float(temperature), float(humidity))
-            # If None values, wait and retry
-            logger.debug("DHT11 returned None values, attempt %d/%d", attempt + 1, max_retries)
-        except RuntimeError as e:
-            # Common errors: "A full buffer was not returned", checksum errors, etc.
-            logger.debug("DHT11 read error (attempt %d/%d): %s", attempt + 1, max_retries, e)
-        except Exception as exc:
-            logger.warning("Unexpected DHT11 error: %s", exc)
-            return None
-        
-        # Wait before retry (DHT11 needs at least 2 seconds between reads)
-        if attempt < max_retries - 1:
-            time.sleep(2)
-    
-    logger.warning("DHT11 failed after %d attempts", max_retries)
-    return None
-
+    try:
+        return dht_device.read()
+    except Exception as exc:
+        logger.warning("DHT11 read error: %s", exc)
+        return None
 
 
 def get_dht11_reading() -> Optional[DHTReading]:
