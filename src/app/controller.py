@@ -5,7 +5,7 @@ Combines State Pattern (ScreenManager) with Observer Pattern (EventNotifier)
 to create the complete e-ink display application.
 """
 from typing import Optional
-from threading import Thread, Event
+from threading import Thread, Event, Lock
 from time import sleep
 import logging
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 DATA_REFRESH_INTERVAL = 300
 
 # DHT11 refresh interval in seconds
-DHT11_REFRESH_INTERVAL = 5
+DHT11_REFRESH_INTERVAL = 60
 
 
 class AppController:
@@ -68,6 +68,7 @@ class AppController:
         # Control flags
         self._running = False
         self._stop_event = Event()
+        self._display_lock = Lock()  # Prevent concurrent display updates
         self._refresh_thread: Optional[Thread] = None
         self._dht11_thread: Optional[Thread] = None
     
@@ -95,29 +96,37 @@ class AppController:
             logger.exception("Failed to initialize display: %s", e)
             raise
     
-    def _update_display(self, use_partial: bool = False) -> None:
+    def _update_display(self, use_partial: bool = False, expected_screen: Optional['BaseScreen'] = None) -> None:
         """Render current screen to the e-ink display.
         
         Args:
             use_partial: Use partial refresh (less flashing) if True.
                          Default is False (full refresh) to avoid ghosting.
+            expected_screen: If provided, only update if current screen matches.
+                            Used to prevent race conditions with background threads.
         """
         if self._epd is None:
             logger.warning("Display not initialized")
             return
         
-        try:
-            image = self._screen_manager.render_current()
-            if image:
-                if use_partial and hasattr(self._epd, 'display_partial'):
-                    self._epd.display_partial(image)
-                else:
-                    self._epd.display(image)
-                logger.debug("Display updated with screen: %s (partial=%s)", 
-                           self._screen_manager.current_screen.name if self._screen_manager.current_screen else "None",
-                           use_partial)
-        except Exception as e:
-            logger.exception("Failed to update display: %s", e)
+        with self._display_lock:
+            # Check if screen changed while waiting for lock
+            if expected_screen is not None and self._screen_manager.current_screen != expected_screen:
+                logger.debug("Screen changed, skipping update for %s", expected_screen.name if expected_screen else "None")
+                return
+            
+            try:
+                image = self._screen_manager.render_current()
+                if image:
+                    if use_partial and hasattr(self._epd, 'display_partial'):
+                        self._epd.display_partial(image)
+                    else:
+                        self._epd.display(image)
+                    logger.debug("Display updated with screen: %s (partial=%s)", 
+                               self._screen_manager.current_screen.name if self._screen_manager.current_screen else "None",
+                               use_partial)
+            except Exception as e:
+                logger.exception("Failed to update display: %s", e)
     
     def _sync_notifier(self) -> None:
         """Sync today's events with the notifier."""
@@ -154,11 +163,12 @@ class AppController:
         while not self._stop_event.is_set():
             try:
                 # Only refresh if we're on the DHT11 screen
-                if self._screen_manager.current_screen == self._dht11_screen:
+                current = self._screen_manager.current_screen
+                if current == self._dht11_screen:
                     # Force refresh of DHT11 data
                     self._dht11_screen.get_data()
-                    # Use partial refresh for DHT11 (only values change)
-                    self._update_display(use_partial=True)
+                    # Use partial refresh for DHT11, pass expected_screen to prevent race
+                    self._update_display(use_partial=True, expected_screen=self._dht11_screen)
                     logger.debug("DHT11 display refreshed (partial)")
             except Exception as e:
                 logger.exception("Error in DHT11 refresh: %s", e)
