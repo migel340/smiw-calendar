@@ -91,8 +91,12 @@ class AppController:
             logger.exception("Failed to initialize display: %s", e)
             raise
     
-    def _update_display(self) -> None:
-        """Render current screen to the e-ink display."""
+    def _update_display(self, use_partial: bool = True) -> None:
+        """Render current screen to the e-ink display.
+        
+        Args:
+            use_partial: Use partial refresh (less flashing) if True
+        """
         if self._epd is None:
             logger.warning("Display not initialized")
             return
@@ -100,10 +104,13 @@ class AppController:
         try:
             image = self._screen_manager.render_current()
             if image:
-                # Pass image directly - EPD.display() handles conversion
-                self._epd.display(image)
-                logger.debug("Display updated with screen: %s", 
-                           self._screen_manager.current_screen.name if self._screen_manager.current_screen else "None")
+                if use_partial and hasattr(self._epd, 'display_partial'):
+                    self._epd.display_partial(image)
+                else:
+                    self._epd.display(image)
+                logger.debug("Display updated with screen: %s (partial=%s)", 
+                           self._screen_manager.current_screen.name if self._screen_manager.current_screen else "None",
+                           use_partial)
         except Exception as e:
             logger.exception("Failed to update display: %s", e)
     
@@ -164,8 +171,8 @@ class AppController:
             # Initialize screen manager (enters first screen)
             self._screen_manager.initialize()
             
-            # Initial display update
-            self._update_display()
+            # Initial display update - use FULL refresh for first render
+            self._update_display(use_partial=False)
             
             # Sync notifier with initial events
             self._sync_notifier()

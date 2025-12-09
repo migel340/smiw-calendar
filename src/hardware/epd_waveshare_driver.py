@@ -101,6 +101,51 @@ class EPD:
         logger.error("EPD hardware not available or display failed; cannot show image on device")
         raise RuntimeError("EPD hardware not available or display failed")
 
+    def display_partial(self, image_or_callable):
+        """Display image using partial refresh (less flashing)."""
+        image = None
+        if callable(image_or_callable):
+            try:
+                image = image_or_callable()
+            except TypeError:
+                image = image_or_callable(self)
+            except Exception:
+                logger.exception("Callable provided to display_partial() raised an exception")
+                raise
+        else:
+            image = image_or_callable
+
+        if not isinstance(image, Image.Image):
+            raise TypeError("display_partial() expects a PIL Image or callable returning Image")
+
+        try:
+            img = image.convert("1")
+        except Exception:
+            img = Image.frombytes("1", image.size, image.tobytes())
+
+        if img.size != (self.width, self.height):
+            try:
+                img = img.resize((self.width, self.height))
+            except Exception:
+                logger.exception("Failed to resize image to EPD dimensions")
+
+        self._ensure_hw()
+
+        if self._hw:
+            try:
+                buf = self._hw.getbuffer(img)
+                if hasattr(self._hw, "displayPartial"):
+                    self._hw.displayPartial(buf)
+                else:
+                    # Fallback to full refresh
+                    self._hw.display(buf)
+                return
+            except Exception:
+                logger.exception("Hardware partial display failed")
+
+        logger.error("EPD hardware not available or display_partial failed")
+        raise RuntimeError("EPD hardware not available or display_partial failed")
+
     def sleep(self):
         if self._hw:
             try:

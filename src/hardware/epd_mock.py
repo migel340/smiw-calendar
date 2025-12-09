@@ -37,5 +37,9 @@ class EPD:
     def display(self, image: Image.Image):
         display(image)
 
+    def display_partial(self, image: Image.Image):
+        """Partial refresh - in mock just calls normal display."""
+        display(image)
+
     def sleep(self):
         pass
