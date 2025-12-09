@@ -1,10 +1,20 @@
 import time
-import board
-import adafruit_dht
 from typing import Any, Optional, NamedTuple
 import logging
+import random
 
 logger = logging.getLogger(__name__)
+
+# Try to import hardware libraries, fall back to mock
+_HAVE_HARDWARE = False
+try:
+    import board
+    import adafruit_dht
+    _HAVE_HARDWARE = True
+except (ImportError, NotImplementedError) as e:
+    logger.warning("DHT11 hardware not available, using mock: %s", e)
+    board = None
+    adafruit_dht = None
 
 _dht11: Optional[Any] = None
 
@@ -14,7 +24,30 @@ class DHTReading(NamedTuple):
     humidity: float
 
 
+class _MockDHT11:
+    """Mock DHT11 sensor for development/testing."""
+    
+    def __init__(self):
+        self._base_temp = 22.0
+        self._base_humidity = 50.0
+        logger.info("[MOCK] DHT11 sensor created")
+    
+    @property
+    def temperature(self) -> float:
+        # Return slightly varying mock temperature
+        return self._base_temp + random.uniform(-2.0, 2.0)
+    
+    @property
+    def humidity(self) -> float:
+        # Return slightly varying mock humidity
+        return self._base_humidity + random.uniform(-5.0, 5.0)
+
+
 def _initialize_dht11() -> Optional[Any]:
+    if not _HAVE_HARDWARE:
+        logger.info("Using mock DHT11 sensor")
+        return _MockDHT11()
+    
     try:
         dht_device = adafruit_dht.DHT11(board.D4, use_pulseio=False)
         return dht_device

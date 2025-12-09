@@ -22,8 +22,16 @@ class EPD:
     def clear(self):
         pass
 
+    def Clear(self):
+        """Alias for clear() for compatibility."""
+        self.clear()
+
     def init(self):
         pass
+
+    def getbuffer(self, image: Image.Image) -> Image.Image:
+        """Convert image to display buffer format."""
+        return image.convert("1")
 
     def display(self, image: Image.Image):
         display(image)

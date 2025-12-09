@@ -1,0 +1,222 @@
+"""
+Application Controller - Main application orchestrator.
+
+Combines State Pattern (ScreenManager) with Observer Pattern (EventNotifier)
+to create the complete e-ink display application.
+"""
+from typing import Optional
+from threading import Thread, Event
+from time import sleep
+import logging
+
+from src.app.screens import (
+    ScreenManager,
+    EventsTodayScreen,
+    EventsTomorrowScreen,
+    TasksScreen,
+    DHT11Screen,
+)
+from src.app.event_notifier import EventNotifier, get_notifier
+from src.hardware import get_epd
+from src.hardware.button_driver import button_was_pressed
+
+logger = logging.getLogger(__name__)
+
+# Data refresh interval in seconds (5 minutes)
+DATA_REFRESH_INTERVAL = 300
+
+
+class AppController:
+    """
+    Main application controller.
+    
+    Orchestrates:
+    - Screen management (State Pattern)
+    - LED notifications (Observer Pattern)
+    - Button input handling
+    - Display updates
+    """
+    
+    def __init__(self):
+        # Initialize screen manager
+        self._screen_manager = ScreenManager()
+        
+        # Initialize screens
+        self._events_today_screen = EventsTodayScreen()
+        self._events_tomorrow_screen = EventsTomorrowScreen()
+        self._tasks_screen = TasksScreen()
+        self._dht11_screen = DHT11Screen()
+        
+        # Register all screens
+        self._screen_manager.register_screens([
+            self._events_today_screen,
+            self._events_tomorrow_screen,
+            self._tasks_screen,
+            self._dht11_screen,
+        ])
+        
+        # Initialize event notifier
+        self._notifier = get_notifier()
+        
+        # E-ink display
+        self._epd = None
+        
+        # Control flags
+        self._running = False
+        self._stop_event = Event()
+        self._refresh_thread: Optional[Thread] = None
+    
+    @property
+    def screen_manager(self) -> ScreenManager:
+        """Get the screen manager instance."""
+        return self._screen_manager
+    
+    @property
+    def notifier(self) -> EventNotifier:
+        """Get the event notifier instance."""
+        return self._notifier
+    
+    def _init_display(self) -> None:
+        """Initialize the e-ink display."""
+        try:
+            self._epd = get_epd()
+            self._epd.init()
+            self._epd.Clear()
+            logger.info("E-ink display initialized")
+        except Exception as e:
+            logger.exception("Failed to initialize display: %s", e)
+            raise
+    
+    def _update_display(self) -> None:
+        """Render current screen to the e-ink display."""
+        if self._epd is None:
+            logger.warning("Display not initialized")
+            return
+        
+        try:
+            image = self._screen_manager.render_current()
+            if image:
+                self._epd.display(self._epd.getbuffer(image))
+                logger.debug("Display updated with screen: %s", 
+                           self._screen_manager.current_screen.name if self._screen_manager.current_screen else "None")
+        except Exception as e:
+            logger.exception("Failed to update display: %s", e)
+    
+    def _sync_notifier(self) -> None:
+        """Sync today's events with the notifier."""
+        try:
+            events = self._events_today_screen.get_events()
+            self._notifier.update_events(events)
+            logger.debug("Notifier synced with %d events", len(events))
+        except Exception as e:
+            logger.exception("Failed to sync notifier: %s", e)
+    
+    def _refresh_data_loop(self) -> None:
+        """Background thread for periodic data refresh."""
+        logger.info("Data refresh thread started")
+        
+        while not self._stop_event.is_set():
+            try:
+                # Refresh events today (for notifier)
+                self._events_today_screen.get_data()
+                self._sync_notifier()
+                
+                logger.info("Periodic data refresh completed")
+            except Exception as e:
+                logger.exception("Error in data refresh: %s", e)
+            
+            # Wait for refresh interval
+            self._stop_event.wait(timeout=DATA_REFRESH_INTERVAL)
+        
+        logger.info("Data refresh thread stopped")
+    
+    def handle_button_press(self) -> None:
+        """Handle button press - switch to next screen."""
+        logger.info("Button pressed - switching screen")
+        
+        # Switch to next screen
+        self._screen_manager.next_screen()
+        
+        # Update display
+        self._update_display()
+        
+        # If we switched to events today, sync notifier
+        if self._screen_manager.current_screen == self._events_today_screen:
+            self._sync_notifier()
+    
+    def run(self) -> None:
+        """
+        Main application loop.
+        
+        Initializes display, starts notifier, and handles button input.
+        """
+        logger.info("Starting application...")
+        
+        try:
+            # Initialize display
+            self._init_display()
+            
+            # Initialize screen manager (enters first screen)
+            self._screen_manager.initialize()
+            
+            # Initial display update
+            self._update_display()
+            
+            # Sync notifier with initial events
+            self._sync_notifier()
+            
+            # Start event notifier
+            self._notifier.start()
+            
+            # Start data refresh thread
+            self._running = True
+            self._stop_event.clear()
+            self._refresh_thread = Thread(target=self._refresh_data_loop, daemon=True)
+            self._refresh_thread.start()
+            
+            logger.info("Application running. Press button to switch screens.")
+            
+            # Main loop - handle button presses
+            while self._running:
+                if button_was_pressed():
+                    self.handle_button_press()
+                
+                sleep(0.1)  # Small delay to prevent CPU spinning
+                
+        except KeyboardInterrupt:
+            logger.info("Keyboard interrupt received")
+        except Exception as e:
+            logger.exception("Application error: %s", e)
+        finally:
+            self.shutdown()
+    
+    def shutdown(self) -> None:
+        """Clean shutdown of the application."""
+        logger.info("Shutting down application...")
+        
+        # Stop main loop
+        self._running = False
+        self._stop_event.set()
+        
+        # Stop notifier
+        self._notifier.stop()
+        
+        # Wait for refresh thread
+        if self._refresh_thread:
+            self._refresh_thread.join(timeout=5)
+            self._refresh_thread = None
+        
+        # Clear display
+        if self._epd:
+            try:
+                self._epd.Clear()
+                self._epd.sleep()
+            except Exception as e:
+                logger.warning("Error clearing display: %s", e)
+        
+        logger.info("Application shutdown complete")
+
+
+def create_app() -> AppController:
+    """Create and return the application controller."""
+    return AppController()
