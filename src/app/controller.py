@@ -15,8 +15,10 @@ from src.app.screens import (
     EventsTomorrowScreen,
     TasksScreen,
     DHT11Screen,
+    JokeScreen,
 )
 from src.app.event_notifier import EventNotifier, get_notifier
+from src.app.screens.base_screen import BaseScreen
 from src.hardware import get_epd
 from src.hardware.button_driver import button_was_pressed
 from src.hardware import led_driver
@@ -28,6 +30,8 @@ DATA_REFRESH_INTERVAL = 300
 
 # DHT11 refresh interval in seconds
 DHT11_REFRESH_INTERVAL = 60
+# Joke refresh interval in seconds
+JOKE_REFRESH_INTERVAL = 30
 
 
 class AppController:
@@ -50,6 +54,7 @@ class AppController:
         self._events_tomorrow_screen = EventsTomorrowScreen()
         self._tasks_screen = TasksScreen()
         self._dht11_screen = DHT11Screen()
+        self._joke_screen = JokeScreen()
         
         # Register all screens
         self._screen_manager.register_screens([
@@ -57,6 +62,7 @@ class AppController:
             self._events_tomorrow_screen,
             self._tasks_screen,
             self._dht11_screen,
+            self._joke_screen,
         ])
         
         # Initialize event notifier
@@ -71,6 +77,7 @@ class AppController:
         self._display_lock = Lock()  # Prevent concurrent display updates
         self._refresh_thread: Optional[Thread] = None
         self._dht11_thread: Optional[Thread] = None
+        self._joke_thread: Optional[Thread] = None
     
     @property
     def screen_manager(self) -> ScreenManager:
@@ -95,8 +102,7 @@ class AppController:
         except Exception as e:
             logger.exception("Failed to initialize display: %s", e)
             raise
-    
-    def _update_display(self, use_partial: bool = False, expected_screen: Optional['BaseScreen'] = None) -> None:
+    def _update_display(self, use_partial: bool = False, expected_screen: Optional[BaseScreen] = None) -> None:
         """Render current screen to the e-ink display.
         
         Args:
@@ -178,6 +184,25 @@ class AppController:
         
         logger.info("DHT11 refresh thread stopped")
 
+    def _joke_refresh_loop(self) -> None:
+        """Background thread for Joke screen refresh."""
+        logger.info("Joke refresh thread started")
+
+        while not self._stop_event.is_set():
+            try:
+                # Only refresh if we're on the Joke screen
+                if self._screen_manager.current_screen == self._joke_screen:
+                    self._joke_screen.get_data()
+                    # Use full refresh to avoid ghosting on text changes
+                    self._update_display(use_partial=False, expected_screen=self._joke_screen)
+                    logger.debug("Joke screen refreshed")
+            except Exception as e:
+                logger.exception("Error in Joke refresh: %s", e)
+
+            self._stop_event.wait(timeout=JOKE_REFRESH_INTERVAL)
+
+        logger.info("Joke refresh thread stopped")
+
     def handle_button_press(self) -> None:
         """Handle button press - switch to next screen."""
         logger.info("Button pressed - switching screen")
@@ -226,6 +251,10 @@ class AppController:
             self._dht11_thread = Thread(target=self._dht11_refresh_loop, daemon=True)
             self._dht11_thread.start()
             
+            # Start Joke refresh thread
+            self._joke_thread = Thread(target=self._joke_refresh_loop, daemon=True)
+            self._joke_thread.start()
+            
             logger.info("Application running. Press button to switch screens.")
             
             # Main loop - handle button presses
@@ -262,6 +291,11 @@ class AppController:
         if self._dht11_thread:
             self._dht11_thread.join(timeout=5)
             self._dht11_thread = None
+        
+        # Wait for Joke thread
+        if self._joke_thread:
+            self._joke_thread.join(timeout=5)
+            self._joke_thread = None
         
         # Clear display
         if self._epd:

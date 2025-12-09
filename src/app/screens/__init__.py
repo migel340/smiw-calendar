@@ -5,6 +5,7 @@ from src.app.screens.events_today_screen import EventsTodayScreen
 from src.app.screens.events_tomorrow_screen import EventsTomorrowScreen
 from src.app.screens.tasks_screen import TasksScreen
 from src.app.screens.dht11_screen import DHT11Screen
+from src.app.screens.joke_screen import JokeScreen
 
 __all__ = [
     'ScreenManager',
@@ -13,4 +14,5 @@ __all__ = [
     'EventsTomorrowScreen',
     'TasksScreen',
     'DHT11Screen',
+    'JokeScreen',
 ]

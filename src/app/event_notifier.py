@@ -36,6 +36,8 @@ class EventNotifier:
         self._led_on = False
         self._tz = ZoneInfo(TIMEZONE)
         self._on_notification_callbacks: List[Callable[[Dict[str, Any]], None]] = []
+        # Keep track of events already notified (simple key: title|start)
+        self._notified_keys: set[str] = set()
     
     def update_events(self, events: List[Dict[str, Any]]) -> None:
         """
@@ -108,11 +110,21 @@ class EventNotifier:
             
             time_until_event = start_time - now
             
+            # Build simple key to prevent duplicate notifications
+            key = f"{event.get('title','')}|{start_str}"
+
             # Check if event is within notification window and hasn't started yet
             if timedelta(0) < time_until_event <= notification_window:
-                logger.info("Event '%s' starts in %s", 
-                           event.get("title"), time_until_event)
+                # If we've already notified about this event, skip
+                if key in self._notified_keys:
+                    continue
+                logger.info("Event '%s' starts in %s", event.get("title"), time_until_event)
+                # mark as notified and return
+                self._notified_keys.add(key)
                 return event
+            # If the event has passed, ensure we clear any notified marker
+            if time_until_event <= timedelta(0) and key in self._notified_keys:
+                self._notified_keys.discard(key)
         
         return None
     
