@@ -19,6 +19,7 @@ from src.app.screens import (
 from src.app.event_notifier import EventNotifier, get_notifier
 from src.hardware import get_epd
 from src.hardware.button_driver import button_was_pressed
+from src.hardware import led_driver
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,9 @@ class AppController:
     def _init_display(self) -> None:
         """Initialize the e-ink display."""
         try:
+            # Ensure LED is OFF at startup
+            led_driver.turn_off()
+            
             self._epd = get_epd()
             self._epd.init()
             self._epd.Clear()
@@ -96,7 +100,8 @@ class AppController:
         try:
             image = self._screen_manager.render_current()
             if image:
-                self._epd.display(self._epd.getbuffer(image))
+                # Pass image directly - EPD.display() handles conversion
+                self._epd.display(image)
                 logger.debug("Display updated with screen: %s", 
                            self._screen_manager.current_screen.name if self._screen_manager.current_screen else "None")
         except Exception as e:

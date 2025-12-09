@@ -1,7 +1,7 @@
 import sys
 import os
 import logging
-from waveshare_lib import epd2in13_V4
+from src.hardware.waveshare_lib import epd2in13_V4
 from PIL import Image
 
 from src.config import EPD_WIDTH, EPD_HEIGHT
@@ -45,6 +45,17 @@ class EPD:
                 self._hw.Clear(0xFF)
             except Exception:
                 logger.exception("Failed to clear EPD")
+
+    def Clear(self):
+        """Alias for clear() for compatibility."""
+        self.clear()
+
+    def getbuffer(self, image: Image.Image) -> bytes:
+        """Convert image to display buffer format."""
+        self._ensure_hw()
+        if self._hw:
+            return self._hw.getbuffer(image.convert("1"))
+        return image.convert("1").tobytes()
 
     def display(self, image_or_callable):
         image = None

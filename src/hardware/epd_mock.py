@@ -5,7 +5,8 @@ from src.config import OUTDIR, EPD_WIDTH, EPD_HEIGHT
 
 
 def display(image: Image.Image):
-    Path(OUTDIR).mkdir(exist_ok=True)
+    # Create parent directories if they don't exist
+    Path(OUTDIR).mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     path = Path(OUTDIR) / f"frame-{ts}.png"
     image.convert("1").save(path)

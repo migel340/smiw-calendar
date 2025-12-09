@@ -12,14 +12,16 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 
+# LED Pin - WARNING: GPIO 18 is also used by EPD PWR_PIN, may cause conflicts!
+# Consider moving LED to GPIO 26, 16, or another free pin
 LED_PIN = 18
 
 class _MockLED:
 
-    def __init__(self, pin: int):
+    def __init__(self, pin: int, initial_value: bool = False):
         self.pin = pin
-        self._state = False
-        logger.info("[MOCK] LED(%s) created", pin)
+        self._state = initial_value
+        logger.info("[MOCK] LED(%s) created, initial=%s", pin, initial_value)
 
     def on(self) -> None:
         self._state = True
@@ -45,11 +47,12 @@ def _get_led() -> Any:
     with _lock:
         if _led is None:
             try:
-                _led = LED_CLASS(LED_PIN)
+                # initial_value=False ensures LED starts OFF
+                _led = LED_CLASS(LED_PIN, initial_value=False)
             except Exception as e:
                 logger.warning("Failed to create real LED (%s); falling back to mock: %s", LED_PIN, e)
                 LED_CLASS = _MockLED
-                _led = LED_CLASS(LED_PIN)
+                _led = LED_CLASS(LED_PIN, initial_value=False)
     return _led
 
 
