@@ -56,19 +56,36 @@ def _initialize_dht11() -> Optional[Any]:
         return None
 
 
-def read_dht11(dht_device: Any) -> Optional[DHTReading]:
-    try:
-        temperature = dht_device.temperature
-        humidity = dht_device.humidity
-        if temperature is None or humidity is None:
+def read_dht11(dht_device: Any, max_retries: int = 5) -> Optional[DHTReading]:
+    """
+    Read from DHT11 with retries.
+    
+    DHT11 is unreliable and often returns errors like:
+    "A full buffer was not returned. Try again."
+    
+    We retry up to max_retries times with 2 second delay between attempts.
+    """
+    for attempt in range(max_retries):
+        try:
+            temperature = dht_device.temperature
+            humidity = dht_device.humidity
+            if temperature is not None and humidity is not None:
+                return DHTReading(float(temperature), float(humidity))
+            # If None values, wait and retry
+            logger.debug("DHT11 returned None values, attempt %d/%d", attempt + 1, max_retries)
+        except RuntimeError as e:
+            # Common errors: "A full buffer was not returned", checksum errors, etc.
+            logger.debug("DHT11 read error (attempt %d/%d): %s", attempt + 1, max_retries, e)
+        except Exception as exc:
+            logger.warning("Unexpected DHT11 error: %s", exc)
             return None
-        return DHTReading(float(temperature), float(humidity))
-    except RuntimeError as e:
-        logger.warning("DHT11 read error: %s", e)
-        return None
-    except Exception as exc:
-        logger.exception("Unexpected error reading DHT11: %s", exc)
-        return None
+        
+        # Wait before retry (DHT11 needs at least 2 seconds between reads)
+        if attempt < max_retries - 1:
+            time.sleep(2)
+    
+    logger.warning("DHT11 failed after %d attempts", max_retries)
+    return None
 
 
 
