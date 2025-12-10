@@ -89,12 +89,12 @@ class EventNotifier:
             logger.warning("Failed to parse time '%s': %s", time_str, e)
             return None
     
-    def check_notifications(self) -> Optional[Dict[str, Any]]:
+    def _should_led_be_on(self) -> Optional[Dict[str, Any]]:
         """
-        Check if any event is starting within notification window.
+        Check if LED should be on (any event within notification window).
         
         Returns:
-            Event dict if notification should be triggered, None otherwise.
+            Event dict if LED should be on, None if LED should be off.
         """
         now = datetime.now(self._tz)
         notification_window = timedelta(minutes=self._minutes_before)
@@ -110,26 +110,46 @@ class EventNotifier:
             
             time_until_event = start_time - now
             
-            # Build simple key to prevent duplicate notifications
-            key = f"{event.get('title','')}|{start_str}"
-
-            # Check if event is within notification window and hasn't started yet
+            # LED should be ON if event is within notification window and hasn't started yet
+            # LED turns OFF when event starts (time_until_event <= 0)
             if timedelta(0) < time_until_event <= notification_window:
-                # Skip only if we already notified AND LED is still on
-                if key in self._notified_keys and self._led_on:
-                    continue
-                
-                # First notification or re-notification (LED was turned off)
-                if key not in self._notified_keys:
-                    logger.info("Event '%s' starts in %s", event.get("title"), time_until_event)
-                    self._notified_keys.add(key)
-                else:
-                    logger.debug("Re-notifying '%s' (LED was off)", key)
-                
                 return event
-            # If the event has passed, ensure we clear any notified marker
-            if time_until_event <= timedelta(0) and key in self._notified_keys:
-                self._notified_keys.discard(key)
+        
+        return None
+    
+    def check_notifications(self) -> Optional[Dict[str, Any]]:
+        """
+        Check if any event is starting within notification window.
+        
+        Returns:
+            Event dict if LED should be on, None otherwise.
+        """
+        event = self._should_led_be_on()
+        
+        if event:
+            key = f"{event.get('title','')}|{event.get('start','')}"
+            # Log only first time we detect this event
+            if key not in self._notified_keys:
+                now = datetime.now(self._tz)
+                start_time = self._parse_event_time(event.get("start", ""))
+                if start_time:
+                    time_until = start_time - now
+                    logger.info("Event '%s' starts in %s - LED should be ON", event.get("title"), time_until)
+                self._notified_keys.add(key)
+            return event
+        
+        # No event in window - clear notified keys for passed events
+        now = datetime.now(self._tz)
+        for evt in self._events:
+            start_str = evt.get("start")
+            if not start_str:
+                continue
+            start_time = self._parse_event_time(start_str)
+            if start_time:
+                key = f"{evt.get('title','')}|{start_str}"
+                if start_time <= now and key in self._notified_keys:
+                    logger.info("Event '%s' has started - LED should be OFF", evt.get("title"))
+                    self._notified_keys.discard(key)
         
         return None
     
