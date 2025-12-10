@@ -16,7 +16,7 @@ from src.config import TIMEZONE
 logger = logging.getLogger(__name__)
 
 # Notification time before event (in minutes)
-NOTIFICATION_MINUTES_BEFORE = 10
+NOTIFICATION_MINUTES_BEFORE = 15
 
 
 class EventNotifier:

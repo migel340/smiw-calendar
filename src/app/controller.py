@@ -26,10 +26,10 @@ from src.hardware import led_driver
 logger = logging.getLogger(__name__)
 
 # Data refresh interval in seconds (5 minutes)
-DATA_REFRESH_INTERVAL = 300
+DATA_REFRESH_INTERVAL = 60
 
 # DHT11 refresh interval in seconds
-DHT11_REFRESH_INTERVAL = 60
+DHT11_REFRESH_INTERVAL = 10
 # Joke refresh interval in seconds
 JOKE_REFRESH_INTERVAL = 30
 
@@ -149,11 +149,24 @@ class AppController:
         
         while not self._stop_event.is_set():
             try:
-                # Refresh events today (for notifier)
+                # Refresh events today
                 self._events_today_screen.get_data()
                 self._sync_notifier()
                 
+                # Refresh events tomorrow
+                self._events_tomorrow_screen.get_data()
+                
+                # Refresh tasks
+                self._tasks_screen.get_data()
+                
                 logger.info("Periodic data refresh completed")
+                
+                # Update display if we're on one of the calendar/tasks screens
+                current = self._screen_manager.current_screen
+                if current in (self._events_today_screen, self._events_tomorrow_screen, self._tasks_screen):
+                    self._update_display(use_partial=False, expected_screen=current)
+                    logger.debug("Display refreshed for %s", current.__class__.__name__)
+                    
             except Exception as e:
                 logger.exception("Error in data refresh: %s", e)
             
