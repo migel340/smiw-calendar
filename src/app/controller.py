@@ -148,6 +148,12 @@ class AppController:
         logger.info("Data refresh thread started")
         
         while not self._stop_event.is_set():
+            # Wait first, then refresh (avoid duplicate refresh on startup)
+            self._stop_event.wait(timeout=DATA_REFRESH_INTERVAL)
+            
+            if self._stop_event.is_set():
+                break
+                
             try:
                 # Refresh events today
                 self._events_today_screen.get_data()
@@ -169,9 +175,6 @@ class AppController:
                     
             except Exception as e:
                 logger.exception("Error in data refresh: %s", e)
-            
-            # Wait for refresh interval
-            self._stop_event.wait(timeout=DATA_REFRESH_INTERVAL)
         
         logger.info("Data refresh thread stopped")
     
