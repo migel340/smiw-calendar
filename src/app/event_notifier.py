@@ -115,8 +115,8 @@ class EventNotifier:
 
             # Check if event is within notification window and hasn't started yet
             if timedelta(0) < time_until_event <= notification_window:
-                # Skip if LED is already on for this event
-                if key in self._notified_keys and self._led_on:
+                # If we've already notified about this event, skip
+                if key in self._notified_keys:
                     continue
                 
                 # First notification or re-notification (LED was turned off)
