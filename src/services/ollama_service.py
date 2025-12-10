@@ -15,6 +15,7 @@ FALLBACK_JOKES = [
 
 # Ollama server config
 OLLAMA_HOST = "http://192.168.254.139:11434"
+OLLAMA_MODEL = "llama2-uncensored"
 OLLAMA_TIMEOUT = 10.0  # seconds
 
 def random_joke() -> Optional[str]:
@@ -24,23 +25,16 @@ def random_joke() -> Optional[str]:
     prompt = f"Tell me a {choice}. Make it short."
     
     try:
-        import httpx
+        import ollama
         
-        # Use httpx directly with proper timeout instead of ollama Client
-        url = f"{OLLAMA_HOST}/api/generate"
-        payload = {
-            "model": "llama2-uncensored",
-            "prompt": prompt,
-            "stream": False
-        }
-        
-        with httpx.Client(timeout=OLLAMA_TIMEOUT) as client:
-            response = client.post(url, json=payload)
-            if response.status_code == 200:
-                data = response.json()
-                joke = data.get('response', '').strip()
-                if joke:
-                    return joke
+        client = ollama.Client(host=OLLAMA_HOST, timeout=OLLAMA_TIMEOUT)
+        response = client.generate(
+            model=OLLAMA_MODEL,
+            prompt=prompt,
+        )
+        joke = response.get('response', '').strip()
+        if joke:
+            return joke
     except Exception as e:
         logger.warning("Ollama unavailable, using fallback joke: %s", e)
     
