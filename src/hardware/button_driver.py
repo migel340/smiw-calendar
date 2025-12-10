@@ -1,4 +1,5 @@
 from threading import Lock
+import time
 from typing import Any, Optional
 import logging
 
@@ -13,6 +14,11 @@ _button: Optional[Any] = None
 _pressed_flag = False
 _lock = Lock()
 
+# Software debounce: ignore presses that occur within this many seconds
+# in addition to gpiozero's bounce_time. Increase if you still see bounces.
+DEBOUNCE_SECONDS = 0.2
+_last_pressed_ts = 0.0
+
 if Button is not None:
     try:
         _button = Button(27, pull_up=True, bounce_time=0.05)
@@ -21,8 +27,14 @@ if Button is not None:
         _button = None
 
 def _on_pressed() -> None:
-    global _pressed_flag
+    """Callback from gpiozero when button pressed; applies software debounce."""
+    global _pressed_flag, _last_pressed_ts
+    now = time.time()
     with _lock:
+        if now - _last_pressed_ts < DEBOUNCE_SECONDS:
+            # ignore rapid bounce
+            return
+        _last_pressed_ts = now
         _pressed_flag = True
 
 if _button is not None:
