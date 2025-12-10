@@ -115,8 +115,13 @@ class EventNotifier:
 
             # Check if event is within notification window and hasn't started yet
             if timedelta(0) < time_until_event <= notification_window:
-                # If we've already notified about this event, skip
+                # If we've already notified about this event, but the LED is off,
+                # allow re-notification (e.g., user cycled screens and LED was cleared).
                 if key in self._notified_keys:
+                    if not self._led_on:
+                        logger.debug("Previously notified but LED off; re-notifying '%s'", key)
+                        return event
+                    # LED already on for this event, skip
                     continue
                 logger.info("Event '%s' starts in %s", event.get("title"), time_until_event)
                 # mark as notified and return
